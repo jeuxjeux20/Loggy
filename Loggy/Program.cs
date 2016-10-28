@@ -54,10 +54,11 @@ namespace Loggy
             }
             return k;
         }
+
         public void Start(string[] args = null)
         {
             _client = new DiscordClient();
-
+            
             var toRecord = new Dictionary<Channel, Channel>();
             _client.UsingCommands(x =>
             {
@@ -67,14 +68,20 @@ namespace Loggy
 
             _client.GetService<CommandService>().CreateCommand("logList")
                 .Description("Make a list of all loggers")
+
+                .Alias(new string[] { "recordList", "listLog", "listRecord" })
                 .Do(async e =>
                     {
                         bool nothing = true;
-                        string message = "List of records :";
+                        string message = $"List of records for the server: {e.Server.Name}";
                         foreach (var item in toRecord)
                         {
-                            nothing = false;
-                            message += $"{Environment.NewLine} {item.Key} ---> {item.Value}";
+                            if (item.Key.Server == e.Server)
+                            {
+                                nothing = false;
+                                message += $"{Environment.NewLine} {item.Key} ---> {item.Value}";
+                            }
+
                         }
 
                         if (nothing)
@@ -84,7 +91,7 @@ namespace Loggy
                             await e.Channel.SendMessage(message);
                         }
                     });
-            
+
 
             _client.GetService<CommandService>().CreateCommand("delete")
 .Description("Delete a record")
@@ -134,7 +141,7 @@ namespace Loggy
             .Description("Disconnects the bot, what else")
             .Do(async e =>
              {
-                 if (e.User.Name == "jeuxjeux20#4664")
+                 if (e.User.Name == "jeuxjeux20" && e.User.Discriminator == 4664)
                  {
                      await e.Channel.SendMessage("Bye :frowning:");
                      await Task.Delay(1000);
@@ -143,10 +150,23 @@ namespace Loggy
                  }
                  else
                  {
-                     await e.Channel.SendMessage("Only jeuxjeux20 can disconnect the bot :p");
+                     var x = await e.Channel.SendMessage("Only jeuxjeux20 can disconnect the bot :p");
+
                  }
              });
-
+            _client.MessageUpdated += async (s, e) =>
+            {
+                foreach (KeyValuePair<Channel, Channel> item in toRecord)
+                {
+                    if (e.Channel == item.Key)
+                    {
+                        await item.Value.SendMessage($@"#{e.Channel.Name} | **{e.User.Name}#{e.User.Discriminator}** edited this message :
+{e.Before.Text}
+:arrow_down:
+{e.After.Text}");
+                    }
+                }
+            };
             _client.GetService<CommandService>().CreateCommand("invite")
 .Description("Get an invite link kek")
 .Do(async e =>
@@ -157,12 +177,14 @@ namespace Loggy
 
             _client.GetService<CommandService>().CreateCommand("about")
         .Description("About the dev c:")
+        .Alias(new string[] { "topkek" })
         .Do(async e =>
             {
                 await e.Channel.SendMessage
-                ($@"```This bot is made be jeuxjeux20,
-                    it is currently on {_client.Servers.Count()} server(s)
-                    I hope that you like it c:```");
+                (
+$@"```This bot is made by jeuxjeux20,
+it is currently on {_client.Servers.Count()} server(s)
+I hope that you like it c:```");
             });
 
 
@@ -235,7 +257,7 @@ namespace Loggy
                 {
                     if (e.Channel == item.Key)
                     {
-                        await item.Value.SendMessage($"#{e.Channel.Name} | **{e.Message.User}** said : {e.Message.RawText}");
+                        await item.Value.SendMessage($"#{e.Channel.Name} | **{e.Message.User}** said : {e.Message.Text}");
                     }
                 }
             };
@@ -291,10 +313,23 @@ namespace Loggy
             });
         }
     }
-    public class Pair<T1, T2>
+    /// <summary>
+    /// you wot m9
+    /// </summary>
+    /// <typeparam name="T1">the first m9</typeparam>
+    /// <typeparam name="T2">the second m7</typeparam>
+    public class Pair<T1, T2> // ye it is public
     {
+        /// <summary>
+        /// topkek !
+        /// </summary>
         public T1 First { get; set; }
         public T2 Second { get; set; }
+        /// <summary>
+        /// oh no let's construct this kek 
+        /// </summary>
+        /// <param name="first">first kek</param>
+        /// <param name="second">second kekkeroni</param>
         public Pair(T1 first, T2 second)
         {
             First = first;
