@@ -39,7 +39,7 @@ namespace Loggy
             return acc;
         }
         #endregion
-        
+
         private DiscordClient _client;
         private bool safeTo(Dictionary<Channel, Channel> dict, Pair<Channel, Channel> per)
         {
@@ -58,7 +58,7 @@ namespace Loggy
         public void Start(string[] args = null)
         {
             _client = new DiscordClient();
-            
+
             var toRecord = new Dictionary<Channel, Channel>();
             _client.UsingCommands(x =>
             {
@@ -66,9 +66,53 @@ namespace Loggy
                 x.HelpMode = HelpMode.Public;
             });
 
+            _client.GetService<CommandService>().CreateCommand("textToEmoji")
+.Description("grab a text, get an emoji kekekekekekekek")
+.Alias(new string[] { "emojiText", "textEmoji", "et", "kekwords" })
+.Parameter("param1", ParameterType.Unparsed)
+.Do(async e =>
+    {
+        string original = e.GetArg("param1").ToLower();
+        string message = string.Empty;
+
+        Dictionary<int, string> dict = new Dictionary<int, string>() {
+            {0, ":zero:"},
+            {1, ":one:"},
+            {2, ":two:"},
+            {3, ":three:"},
+            {4, ":four:"},
+            {5, ":five:"},
+            {6, ":six:"},
+            {7, ":seven:"},
+            {8, ":eight:"},
+            {9, ":nine:"},
+            {10, ":keycap_ten:"}
+        };
+        foreach (char c in original.ToCharArray())
+        {
+            if (char.IsLetter(c))
+            {
+                message += $":regional_indicator_{c}:";
+            }
+            else if (char.IsDigit(c))
+            {
+                message += dict[int.Parse(c.ToString())];
+            }
+            else if (c == '*')
+            {
+                message += ":asterisk:";
+            }
+            else
+            {
+                message += c;
+            }
+        }
+        await e.Channel.SendMessage(message);
+    });
+
             _client.GetService<CommandService>().CreateCommand("logList")
                 .Description("Make a list of all loggers")
-
+                .AddCheck((a, b, c) => { return isAcceptable(b); }, "You must get a role that contains Logger or Admin in its name.")
                 .Alias(new string[] { "recordList", "listLog", "listRecord" })
                 .Do(async e =>
                     {
@@ -97,6 +141,7 @@ namespace Loggy
 .Description("Delete a record")
 .Parameter("a", ParameterType.Required)
 .Parameter("b", ParameterType.Required)
+.AddCheck((a, b, c) => { return isAcceptable(b); }, "You must get a role that contains Logger or Admin in its name.")
 .Do(async e =>
     {
         string a = e.GetArg("a");
@@ -123,7 +168,7 @@ namespace Loggy
                 toRecordTemp.Second = item;
             }
         }
-        if (isAcceptable(e) && foundie.First && foundie.Second)
+        if (foundie.First && foundie.Second)
         {
             foreach (var item in toRecord.ToList())
             {
@@ -139,21 +184,15 @@ namespace Loggy
 
             _client.GetService<CommandService>().CreateCommand("disconnect")
             .Description("Disconnects the bot, what else")
+            .AddCheck((a, b, c) => { if (b.Name == "jeuxjeux20" && b.Discriminator == 4664) { return true; } else { return false; } }, "Only jeuxjeux20 can disconnect it")
             .Do(async e =>
              {
-                 if (e.User.Name == "jeuxjeux20" && e.User.Discriminator == 4664)
-                 {
-                     await e.Channel.SendMessage("Bye :frowning:");
-                     await Task.Delay(1000);
-                     await _client.Disconnect();
-                     _client.Dispose();
-                 }
-                 else
-                 {
-                     var x = await e.Channel.SendMessage("Only jeuxjeux20 can disconnect the bot :p");
-
-                 }
+                 await e.Channel.SendMessage("Bye :frowning:");
+                 await Task.Delay(1000);
+                 await _client.Disconnect();
+                 _client.Dispose();
              });
+                            
             _client.MessageUpdated += async (s, e) =>
             {
                 foreach (KeyValuePair<Channel, Channel> item in toRecord)
@@ -192,6 +231,7 @@ I hope that you like it c:```");
             .Description("record a channel")
             .Parameter("a", ParameterType.Required)
             .Parameter("b", ParameterType.Required)
+            .AddCheck((a, b, c) => { return isAcceptable(b); }, "You must get a role that contains Logger or Admin in its name.")
             .Do(async e =>
              {
                  string a = e.GetArg("a");
@@ -222,7 +262,7 @@ I hope that you like it c:```");
                  {
                      await e.Channel.SendMessage($"Something didn't got right - Listening : {foundie.First} ; Target : {foundie.Second}");
                  }
-                 else if (isAcceptable(e) && safeTo(toRecord, toRecordTemp))
+                 else if (safeTo(toRecord, toRecordTemp))
                  {
                      await e.Channel.SendMessage($"~~Succesfully installed Windows 10~~ Succesfully recording #{a} to output #{b}");
                      bool cool = true;
@@ -240,10 +280,7 @@ I hope that you like it c:```");
                      if (cool)
                          toRecord.Add(toRecordTemp.First, toRecordTemp.Second);
                  }
-                 else if (!isAcceptable(e))
-                 {
-                     await e.Channel.SendMessage($"Sorry, but you aren't allowed to use this command ; please get a role that contains \"logger\" or \"Admin\" in its name");
-                 }
+                 
                  else if (!safeTo(toRecord, toRecordTemp))
                  {
                      await e.Channel.SendMessage(":negative_squared_cross_mark: you can't make a record loop seriously m8");
