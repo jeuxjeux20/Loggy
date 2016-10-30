@@ -41,6 +41,7 @@ namespace Loggy
             return acc;
         }
         #endregion
+        DateTime lastJoolya = DateTime.UtcNow;
         private void Repeat(byte n, Action act)
         {
             for (byte i = 0; i > n; i--)
@@ -55,6 +56,10 @@ namespace Loggy
                 if (err.Command.Text == "broadcast" || err.Command.Text == "disconnect")
                 {
                     await err.Channel.SendMessage("**__No__**, only jeuxjeux20 can use this command");
+                }
+                else if (err.Command.Text == "keks" || err.Command.Text == "wizondrug")
+                {
+                    await err.Channel.SendMessage($"Please wait {(lastJoolya.AddSeconds(45) - DateTime.UtcNow).Seconds} seconds. ty");
                 }
                 else
                 {
@@ -105,7 +110,7 @@ namespace Loggy
         {
             #region declares
             _client = new DiscordClient();
-            DateTime lastJoolya = DateTime.UtcNow;
+
             var toRecord = new Dictionary<Channel, Channel>();
             #endregion           
             _client.MessageReceived += async (s, e) =>
@@ -133,7 +138,7 @@ namespace Loggy
             };
             _client.UsingCommands(x =>
             {
-                x.PrefixChar = ':';
+                x.PrefixChar = '=';
                 x.HelpMode = HelpMode.Public;
                 x.ErrorHandler += async (a, b) => { await ok(a, b); };
                 x.ExecuteHandler += async (a, e) =>
@@ -152,8 +157,106 @@ namespace Loggy
             });
             _client.Ready += (s, e) =>
             {
-                _client.SetGame("Type \":help\" to get started !");
+                _client.SetGame("Type \"=help\" to get started !");
             };
+            #region clean
+
+            _client.GetService<CommandService>().CreateCommand("clean")
+.Description("Clean [number] messages")
+.AddCheck((a,b,c) => { return isAcceptable(b); })
+.Parameter("number", ParameterType.Required)
+.Do(async e =>
+    {
+        try
+        {
+            Message[] toDel;
+            int c = Math.Max(1, Convert.ToInt32(e.GetArg("number")));
+            toDel = await e.Channel.DownloadMessages(c);
+            await e.Channel.DeleteMessages(toDel);            
+            await e.Channel.SendMessage("Succesfully deleted " + c + " messages !");
+        }
+        catch (Exception)
+        {
+            await e.Channel.SendMessage("It seems that the bot hasn't got permissions to delete these.");
+        }
+    });
+            #endregion
+            #region wizOnDrugs 
+            _client.GetService<CommandService>().CreateCommand("wizondrug")
+                .Description("get kek and pizzas")
+                .Alias(new string[] { "drugs", "electronicdrugs", "wizdrug" })
+                .AddCheck((a, b, c) =>
+                {
+                    return lastJoolya.AddSeconds(45) < DateTime.UtcNow;
+                }, "plz wait a little bit")
+                .Do(async e =>
+                {
+                    DateTime lastJoolya = DateTime.UtcNow;
+                    Random kek = new Random(DateTime.UtcNow.Millisecond);
+                    List<Message> ls = new List<Message>();
+                    string[] drugs = new string[] { "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm", "Windows 7", "silent rd", "gruel", "memz", "bye" };
+                    for (int i = 0; i < 12; i++)
+                    {
+                        ls.Add(await e.Channel.SendMessage(drugs[kek.Next(0,drugs.Length)]));
+                        await Task.Delay(600);
+                    }
+                    foreach (var item in ls)
+                    {
+                        await item.Delete();
+                    }
+                });
+            #endregion
+            #region MDMCK10
+
+            _client.GetService<CommandService>().CreateCommand("MDMCK10")
+        .Description("MDMCK10 has something to confess")
+        .Do(async e =>
+            {
+                var x = await e.Channel.SendMessage("A gud person that makes bad mistakes sometimes");
+                await Task.Delay(500);
+                await x.Edit("A gud person that makes very bad mistakes sometimes");
+            });
+
+
+            #endregion
+            #region pizza
+
+            _client.GetService<CommandService>().CreateCommand("keks")
+.Description("get kek and pizzas")
+.AddCheck((a, b, c) => { return lastJoolya.AddSeconds(45) < DateTime.UtcNow; }, "plz wait a little bit")
+.Do(async e =>
+    {
+        DateTime lastJoolya = DateTime.UtcNow;
+        List<Message> x = new List<Message>();
+        x.Add(await e.Channel.SendMessage("cake"));
+        x.Add(await e.Channel.SendMessage("cake"));
+        x.Add(await e.Channel.SendMessage("cake"));
+        x.Add(await e.Channel.SendMessage("cake"));
+        x.Add(await e.Channel.SendMessage("cake"));
+        x.Add(await e.Channel.SendMessage("cake"));
+        await Task.Delay(3000);
+        foreach (var item in x)
+        {
+            await item.Delete();
+        }
+        await Task.Delay(7500);
+        x.Add(await e.Channel.SendMessage("rip"));
+        x.Add(await e.Channel.SendMessage("vm"));
+        x.Add(await e.Channel.SendMessage("ripvm"));
+        x.Add(await e.Channel.SendMessage("bye"));
+        x.Add(await e.Channel.SendMessage("Windows 9"));
+        x.Add(await e.Channel.SendMessage("hi"));
+        await e.Channel.SendMessage("You want kek ?");
+        x.Add(await e.Channel.SendMessage("cake"));
+        await Task.Delay(3000);
+        foreach (var item in x)
+        {
+            await item.Delete();
+        }
+    });
+
+
+            #endregion
             #region It's julia lol
             _client.GetService<CommandService>().CreateCommand("joolya7")
 .Description("find out xd")
@@ -600,11 +703,14 @@ Perms that changed :
             #endregion
             Dictionary<char, string> sym = new Dictionary<char, string>()
            {
-            {'+', ":heavy_plus_sign: "},
-            {'-', ":heavy_minus_sign:"},
-            {'÷', ":heavy_division_sign:"},
-            {'#',":hash:"},
-            {'.', ":black_small_square:"}
+                {'+', ":heavy_plus_sign: "},
+                {'-', ":heavy_minus_sign:"},
+                {'÷', ":heavy_division_sign:"},
+                {'#',":hash:"},
+                {'.', ":black_small_square:"},
+                {'$', ":heavy_dollar_sign: " },
+                {'!',":exclamation:" },
+                {'?',":question:" }
            };
             foreach (char c in input.ToCharArray())
             {
