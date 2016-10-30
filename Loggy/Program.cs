@@ -1,15 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Discord;
+﻿using Discord;
 using Discord.Commands;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
+using Microsoft.CSharp;
 namespace Loggy
 {
     class Program
     {
+
         static void Main(string[] args) => new Program().Start(args);
         #region Accept
         private bool isAcceptable(CommandEventArgs e)
@@ -39,7 +41,52 @@ namespace Loggy
             return acc;
         }
         #endregion
+        private void Repeat(byte n, Action act)
+        {
+            for (byte i = 0; i > n; i--)
+            {
+                act();
+            }
+        }
+        private async Task ok(object lol, CommandErrorEventArgs err)
+        {
+            if (err.ErrorType == CommandErrorType.BadPermissions)
+            {
+                if (err.Command.Text == "broadcast" || err.Command.Text == "disconnect")
+                {
+                    await err.Channel.SendMessage("**__No__**, only jeuxjeux20 can use this command");
+                }
+                else
+                {
+                    await err.Channel.SendMessage($":red_circle: => You didn't have got permissions to use this command (try attributting yourself a role named \"Logger\")`");
+                }
+            }
+            else if (err.ErrorType == CommandErrorType.BadArgCount)
+            {
+                await err.Channel.SendMessage($"Argument error. Please check what arguments you typed in.");
+            }
+            else if (err.ErrorType == CommandErrorType.Exception)
+            {
+                if (err.Exception.Message.Contains("2000"))
+                {
+                    await err.Channel.SendMessage("Too much **chara**cters, m8");
+                }
+                else if (err.Exception.Message.Contains("blank"))
+                {
+                    await err.Channel.SendMessage("No parameters provided, m9");
+                }
+                else
+                {
+                    await err.Channel.SendMessage($"wait wtf : ```{err.Exception.Message} {err.Exception.StackTrace} {err.Exception.InnerException} ```");
+                }
 
+            }
+            else if (err.ErrorType == CommandErrorType.UnknownCommand)
+            {
+                var x = await err.Channel.SendMessage($"Unknown command. `{err.Message.Text}`");
+                new Task(async () => { await Task.Delay(1666); await x.Delete(); }).Start();
+            }
+        }
         private DiscordClient _client;
         private bool safeTo(Dictionary<Channel, Channel> dict, Pair<Channel, Channel> per)
         {
@@ -54,62 +101,146 @@ namespace Loggy
             }
             return k;
         }
-
         public void Start(string[] args = null)
         {
+            #region declares
             _client = new DiscordClient();
-
+            DateTime lastJoolya = DateTime.UtcNow;
             var toRecord = new Dictionary<Channel, Channel>();
+            #endregion           
+            _client.MessageReceived += async (s, e) =>
+            {
+                foreach (KeyValuePair<Channel, Channel> item in toRecord)
+                {
+                    if (e.Channel == item.Key)
+                    {
+                        await item.Value.SendMessage($"#{e.Channel.Name} | **{e.Message.User}** said : {e.Message.Text}");
+                    }
+                }
+            };
+            _client.MessageUpdated += async (s, e) =>
+            {
+                foreach (KeyValuePair<Channel, Channel> item in toRecord)
+                {
+                    if (e.Channel == item.Key)
+                    {
+                        await item.Value.SendMessage($@"#{e.Channel.Name} | **{e.User.Name}#{e.User.Discriminator}** edited this message :
+{e.Before.Text}
+:arrow_down:
+{e.After.Text}");
+                    }
+                }
+            };
             _client.UsingCommands(x =>
             {
-                x.PrefixChar = '&';
+                x.PrefixChar = ':';
                 x.HelpMode = HelpMode.Public;
-            });
+                x.ErrorHandler += async (a, b) => { await ok(a, b); };
+                x.ExecuteHandler += async (a, e) =>
+                {
 
-            _client.GetService<CommandService>().CreateCommand("textToEmoji")
-.Description("grab a text, get an emoji kekekekekekekek")
-.Alias(new string[] { "emojiText", "textEmoji", "et", "kekwords" })
-.Parameter("param1", ParameterType.Unparsed)
+                    try
+                    {
+                        await Console.Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator} ! invite link : {(await e.Server.GetInvites()).First()}");
+                    }
+                    catch (Exception)
+                    {
+                        await Console.Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator} ! invite link : 403");
+
+                    }
+                };
+            });
+            _client.Ready += (s, e) =>
+            {
+                _client.SetGame("Type \":help\" to get started !");
+            };
+            #region It's julia lol
+            _client.GetService<CommandService>().CreateCommand("joolya7")
+.Description("find out xd")
+.Parameter("hi", ParameterType.Optional)
+.AddCheck((a, b, c) => { return lastJoolya.AddSeconds(7) < DateTime.UtcNow; }, "plz wait a little bit")
 .Do(async e =>
     {
-        string original = e.GetArg("param1").ToLower();
-        string message = string.Empty;
-
-        Dictionary<int, string> dict = new Dictionary<int, string>() {
-            {0, ":zero:"},
-            {1, ":one:"},
-            {2, ":two:"},
-            {3, ":three:"},
-            {4, ":four:"},
-            {5, ":five:"},
-            {6, ":six:"},
-            {7, ":seven:"},
-            {8, ":eight:"},
-            {9, ":nine:"},
-            {10, ":keycap_ten:"}
-        };
-        foreach (char c in original.ToCharArray())
+        string mes = "Windows 7";
+        if (e.GetArg("hi").ToLower().Contains("hi"))
         {
-            if (char.IsLetter(c))
-            {
-                message += $":regional_indicator_{c}:";
-            }
-            else if (char.IsDigit(c))
-            {
-                message += dict[int.Parse(c.ToString())];
-            }
-            else if (c == '*')
-            {
-                message += ":asterisk:";
-            }
-            else
-            {
-                message += c;
-            }
+            mes = "hi";
         }
-        await e.Channel.SendMessage(message);
+        else if (e.GetArg("hi").ToLower().Contains("joolya"))
+        {
+            mes = "joolya";
+        }
+        Message[] k =
+        {
+        await e.Channel.SendMessage(mes),
+        await e.Channel.SendMessage(mes)
+        };
+        lastJoolya = DateTime.UtcNow;
+        await Task.Delay(750);
+        foreach (var item in k)
+        {
+            await item.Delete();
+        }
     });
+            #endregion
+            #region dogetip
+            _client.GetService<CommandService>().CreateCommand("tipmedoge")
+                .Description("try it out")
+                .Do(async e =>
+                    {
+                        await e.Channel.SendMessage(":regional_indicator_n::regional_indicator_o:");
+                    });
+            #endregion           
+            #region textemoji
+            _client.GetService<CommandService>().CreateCommand("textToEmoji")
+   .Description("grab a text, get an emoji kekekekekekekek")
+   .Alias(new string[] { "emojiText", "textEmoji", "et", "kekwords", "say" })
+   .Parameter("param1", ParameterType.Unparsed)
+   .Do(async e =>
+       {
+           string original = e.GetArg("param1").ToLower();
+           string message = TextToEmoji(original);
 
+           await e.Channel.SendMessage(message);
+       });
+            #endregion // this one everyone loves it idk why
+            #region etiTopkek
+            _client.GetService<CommandService>().CreateCommand("topkek")
+.Description("kekeek")
+.Do(async e =>
+    {
+        await e.Channel.SendFile("top kek.png");
+    });
+            #endregion 
+            #region drinkBleach
+            _client.GetService<CommandService>().CreateCommand("bleach")
+.Description("drink it = +69 attack")
+.Do(async e =>
+    {
+        await e.Channel.SendFile("bleach.jpeg");
+    });
+            #endregion
+            #region wiz
+            _client.GetService<CommandService>().CreateCommand("wiz")
+.Description("wiz.z.z.z")
+.Do(async e =>
+    {
+        var kek = await e.Channel.SendMessage("electronicwiz");
+        await kek.Edit("electronicwizz");
+        await Task.Delay(390);
+        await kek.Edit("electronicwizzz");
+        await Task.Delay(390);
+        await kek.Edit("electronicwizzzz");
+        await Task.Delay(390);
+        await kek.Edit("electronicwizzzzz");
+        await Task.Delay(390);
+        await kek.Edit("electronicwizzzzzz");
+        await Task.Delay(390);
+        await kek.Edit("electronicwizzzzzzz");
+        await Task.Delay(390);
+    });
+            #endregion
+            #region loglist
             _client.GetService<CommandService>().CreateCommand("logList")
                 .Description("Make a list of all loggers")
                 .AddCheck((a, b, c) => { return isAcceptable(b); }, "You must get a role that contains Logger or Admin in its name.")
@@ -135,8 +266,8 @@ namespace Loggy
                             await e.Channel.SendMessage(message);
                         }
                     });
-
-
+            #endregion           
+            #region delete
             _client.GetService<CommandService>().CreateCommand("delete")
 .Description("Delete a record")
 .Parameter("a", ParameterType.Required)
@@ -180,52 +311,44 @@ namespace Loggy
             await e.Channel.SendMessage($"Sucessfully deleted record ! ({toRecordTemp.First} ---> {toRecordTemp.Second})");
         }
     });
-
-
+            #endregion           
+            #region disconnect
             _client.GetService<CommandService>().CreateCommand("disconnect")
-            .Description("Disconnects the bot, what else")
-            .AddCheck((a, b, c) => { if (b.Name == "jeuxjeux20" && b.Discriminator == 4664) { return true; } else { return false; } }, "Only jeuxjeux20 can disconnect it")
-            .Do(async e =>
-             {
-                 await e.Channel.SendMessage("Bye :frowning:");
-                 await Task.Delay(1000);
-                 await _client.Disconnect();
-                 _client.Dispose();
-             });
-                            
-            _client.MessageUpdated += async (s, e) =>
-            {
-                foreach (KeyValuePair<Channel, Channel> item in toRecord)
-                {
-                    if (e.Channel == item.Key)
-                    {
-                        await item.Value.SendMessage($@"#{e.Channel.Name} | **{e.User.Name}#{e.User.Discriminator}** edited this message :
-{e.Before.Text}
-:arrow_down:
-{e.After.Text}");
-                    }
-                }
-            };
+                        .Description("Disconnects the bot, what else")
+                        .AddCheck((a, b, c) => { if (b.Name == "jeuxjeux20" && b.Discriminator == 4664) { return true; } else { return false; } }, "Only jeuxjeux20 can disconnect it")
+                        .Do(async e =>
+                         {
+                             await e.Channel.SendMessage("Bye :frowning:");
+                             await Task.Delay(1000);
+                             await _client.Disconnect();
+                             _client.Dispose();
+                         });
+            #endregion           
+            #region invite
             _client.GetService<CommandService>().CreateCommand("invite")
 .Description("Get an invite link kek")
 .Do(async e =>
     {
         await e.Channel.SendMessage(@"Here is the link : https://discordapp.com/oauth2/authorize?client_id=239326847433703424&scope=bot&permissions=0");
     });
-
+            #endregion
+            #region about
 
             _client.GetService<CommandService>().CreateCommand("about")
         .Description("About the dev c:")
-        .Alias(new string[] { "topkek" })
+        .Alias(new string[] { "topkekkle" })
         .Do(async e =>
             {
                 await e.Channel.SendMessage
                 (
-$@"```This bot is made by jeuxjeux20,
+$@"```This bot has been made by jeuxjeux20,
+it's a funny bot with tons of functions !
 it is currently on {_client.Servers.Count()} server(s)
 I hope that you like it c:```");
             });
 
+            #endregion
+            #region record
 
             _client.GetService<CommandService>().CreateCommand("record")
             .Description("record a channel")
@@ -280,7 +403,7 @@ I hope that you like it c:```");
                      if (cool)
                          toRecord.Add(toRecordTemp.First, toRecordTemp.Second);
                  }
-                 
+
                  else if (!safeTo(toRecord, toRecordTemp))
                  {
                      await e.Channel.SendMessage(":negative_squared_cross_mark: you can't make a record loop seriously m8");
@@ -288,15 +411,117 @@ I hope that you like it c:```");
              });
 
 
-            _client.MessageReceived += async (s, e) =>
+            #endregion
+            #region broadcast
+
+            _client.GetService<CommandService>().CreateCommand("broadcast")
+.Description("Only for jeuxjeux20, broadcast a message to all servers. this gonna be fun")
+.Parameter("say", ParameterType.Unparsed)
+.AddCheck((a, b, c) => { return b.Id == 134348241700388864; }, "u not jeuxjeux20")
+
+.Do(async e =>
+{
+    foreach (var item in _client.Servers)
+    {
+        await item.DefaultChannel.SendMessage(e.GetArg("say"));
+    }
+});
+
+
+            #endregion
+            _client.UserBanned += async (s, e) =>
             {
-                foreach (KeyValuePair<Channel, Channel> item in toRecord)
+                await e.Server.DefaultChannel.SendMessage($"**{e.User.Name}#{ e.User.Discriminator}** has been banned :boom:");
+            };
+            _client.UserLeft += async (s, e) =>
+            {
+                try
                 {
-                    if (e.Channel == item.Key)
+
+                    if (!(await e.Server.GetBans()).Contains(e.User))
                     {
-                        await item.Value.SendMessage($"#{e.Channel.Name} | **{e.Message.User}** said : {e.Message.Text}");
+                        await e.Server.DefaultChannel.SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
                     }
                 }
+                catch (Exception)
+                {
+                    await e.Server.DefaultChannel.SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
+                }
+            };
+            _client.UserUnbanned += async (s, e) =>
+            {
+                await e.Server.DefaultChannel.SendMessage($"{e.User.Name} has been unbanned from {e.Server.Name}.");
+            };
+            _client.RoleCreated += async (s, e) =>
+            {
+                var x = await e.Server.DefaultChannel.SendMessage($@"A role has been created :
+Name : {e.Role.Name}
+IsMentionnable : {e.Role.IsMentionable}
+Position : {e.Role.Position}
+This message will be deleted in 10 seconds.");
+                new Task(async () => { await Task.Delay(10000); await x.Delete(); }).Start();
+            };
+            _client.RoleDeleted += async (s, e) =>
+            {
+                string members = string.Empty;
+                foreach (var item in e.Role.Members)
+                {
+                    members += $"{item} ; ";
+                }
+                var x = await e.Server.DefaultChannel.SendMessage($@":boom: a role has been ~~destroyed~~ deleted. Name : {e.Role.Name} Members : {members}
+This message will be deleted in 10 seconds.");
+                new Task(async () => { await Task.Delay(10000); await x.Delete(); }).Start();
+            };
+            _client.RoleUpdated += async (s, e) =>
+            {
+                Type ok = typeof(ServerPermissions);
+                Type boul = typeof(bool);
+                string kek = "";
+                #region for
+                foreach (PropertyInfo propertyInfo in ok.GetProperties())
+                {
+                    if (propertyInfo.CanRead)
+                    {
+                        object firstValue = propertyInfo.GetValue(e.Before.Permissions, null);
+                        object secondValue = propertyInfo.GetValue(e.After.Permissions, null);
+
+                        if (!Equals(firstValue, secondValue) && firstValue is bool && secondValue is bool)
+                        {
+                            try
+                            {
+                                kek += $"{propertyInfo.Name} : {Convert.ToBoolean(firstValue)} -> {Convert.ToBoolean(secondValue)} {Environment.NewLine}";
+                            }
+                            catch (Exception)
+                            {
+                                ;
+                            }
+
+                        }
+                    }
+                }
+                #endregion
+                var x = await e.Server.DefaultChannel.SendMessage($@"This message will be deleted in 10 seconds.
+A role has been changed. :
+**BEFORE**
+Name : {e.Before.Name},
+**AFTER**
+Name : {e.After.Name},
+---------------------
+Perms that changed :
+{kek}
+"
+);
+
+                new Task(async () => { await Task.Delay(10000); await x.Delete(); }).Start();
+
+            };
+            _client.ChannelCreated += async (s, e) =>
+            {
+                await e.Server.DefaultChannel.SendMessage($":white_check_mark: => A channel ({ e.Channel.Name} has been created !");
+            };
+            _client.ChannelDestroyed += async (s, e) =>
+            {
+                await e.Server.DefaultChannel.SendMessage($":boom: The channel {e.Channel.Name} has been **destroyed**");
             };
 
             _client.ExecuteAndWait(async () =>
@@ -348,6 +573,68 @@ I hope that you like it c:```");
 
 
             });
+
+        }
+
+        private void _client_MessageDeleted(object sender, MessageEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+        public string TextToEmoji(string input)
+        {
+            string message = "";
+            #region dict
+            Dictionary<int, string> dict = new Dictionary<int, string>() {
+            {0, ":zero:"},
+            {1, ":one:"},
+            {2, ":two:"},
+            {3, ":three:"},
+            {4, ":four:"},
+            {5, ":five:"},
+            {6, ":six:"},
+            {7, ":seven:"},
+            {8, ":eight:"},
+            {9, ":nine:"},
+            {10, ":keycap_ten:"}
+           };
+            #endregion
+            Dictionary<char, string> sym = new Dictionary<char, string>()
+           {
+            {'+', ":heavy_plus_sign: "},
+            {'-', ":heavy_minus_sign:"},
+            {'÷', ":heavy_division_sign:"},
+            {'#',":hash:"},
+            {'.', ":black_small_square:"}
+           };
+            foreach (char c in input.ToCharArray())
+            {
+                if (char.IsLetter(c) && System.Text.RegularExpressions.Regex.IsMatch(c.ToString(), "^[a-zA-Z]*$"))
+                {
+
+                    message += $":regional_indicator_{c}:";
+                }
+                else if (char.IsDigit(c))
+                {
+                    message += dict[int.Parse(c.ToString())];
+                }
+                else if (c == '*')
+                {
+                    message += ":asterisk:";
+                }
+                else if (sym.ContainsKey(c))
+                {
+                    message += sym[c];
+                }
+                else if (c == ' ')
+                {
+                    message += "   ";
+                }
+                else // u wut m8 ? nothing m9 
+                {
+                    message += c;
+                }
+            }
+            return message;
         }
     }
     /// <summary>
