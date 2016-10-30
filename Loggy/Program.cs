@@ -11,7 +11,7 @@ namespace Loggy
 {
     class Program
     {
-
+        string[] drugs = new string[] { "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm", "Windows 7", "silent rd", "gruel", "memz", "bye" };
         static void Main(string[] args) => new Program().Start(args);
         #region Accept
         private bool isAcceptable(CommandEventArgs e)
@@ -57,9 +57,13 @@ namespace Loggy
                 {
                     await err.Channel.SendMessage("**__No__**, only jeuxjeux20 can use this command");
                 }
-                else if (err.Command.Text == "keks" || err.Command.Text == "wizondrug")
+                else if (err.Command.Text == "wizondrug")
                 {
-                    await err.Channel.SendMessage($"Please wait {(lastJoolya.AddSeconds(45) - DateTime.UtcNow).Seconds} seconds. ty");
+                    await err.Channel.SendMessage($"Please wait {(lastJoolya.AddSeconds(69) - DateTime.UtcNow).Seconds} seconds. ty");
+                }
+                else if (err.Command.Text == "keks")
+                {
+                    await err.Channel.SendMessage($"Please wait {(lastJoolya.AddSeconds(15) - DateTime.UtcNow).Seconds} seconds. ty");
                 }
                 else
                 {
@@ -187,15 +191,14 @@ namespace Loggy
                 .Alias(new string[] { "drugs", "electronicdrugs", "wizdrug" })
                 .AddCheck((a, b, c) =>
                 {
-                    return lastJoolya.AddSeconds(45) < DateTime.UtcNow;
-                }, "plz wait a little bit")
+                    return lastJoolya.AddSeconds(69) < DateTime.UtcNow;
+                })
                 .Do(async e =>
                 {
-                    DateTime lastJoolya = DateTime.UtcNow;
+                    lastJoolya = DateTime.UtcNow;
                     Random kek = new Random(DateTime.UtcNow.Millisecond);
                     List<Message> ls = new List<Message>();
-                    string[] drugs = new string[] { "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm", "Windows 7", "silent rd", "gruel", "memz", "bye" };
-                    for (int i = 0; i < 12; i++)
+                    for (int i = 0; i < new Random().Next(6,10); i++)
                     {
                         ls.Add(await e.Channel.SendMessage(drugs[kek.Next(0,drugs.Length)]));
                         await Task.Delay(600);
@@ -219,14 +222,14 @@ namespace Loggy
 
 
             #endregion
-            #region pizza
+            #region kek
 
             _client.GetService<CommandService>().CreateCommand("keks")
 .Description("get kek and pizzas")
-.AddCheck((a, b, c) => { return lastJoolya.AddSeconds(45) < DateTime.UtcNow; }, "plz wait a little bit")
+.AddCheck((a, b, c) => { return lastJoolya.AddSeconds(15) < DateTime.UtcNow; }, "plz wait a little bit")
 .Do(async e =>
     {
-        DateTime lastJoolya = DateTime.UtcNow;
+        lastJoolya = DateTime.UtcNow;
         List<Message> x = new List<Message>();
         x.Add(await e.Channel.SendMessage("cake"));
         x.Add(await e.Channel.SendMessage("cake"));
@@ -260,18 +263,18 @@ namespace Loggy
             #region It's julia lol
             _client.GetService<CommandService>().CreateCommand("joolya7")
 .Description("find out xd")
-.Parameter("hi", ParameterType.Optional)
+.Parameter("hi", ParameterType.Unparsed)
 .AddCheck((a, b, c) => { return lastJoolya.AddSeconds(7) < DateTime.UtcNow; }, "plz wait a little bit")
 .Do(async e =>
     {
         string mes = "Windows 7";
-        if (e.GetArg("hi").ToLower().Contains("hi"))
+        foreach (var item in drugs)
         {
-            mes = "hi";
-        }
-        else if (e.GetArg("hi").ToLower().Contains("joolya"))
-        {
-            mes = "joolya";
+            if (e.GetArg("hi").Equals(item))
+            {
+                mes = item;
+                break;
+            }
         }
         Message[] k =
         {
