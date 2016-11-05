@@ -7,6 +7,9 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.CSharp;
+using System.Collections;
+using System.Diagnostics;
+
 namespace Loggy
 {
     class Program
@@ -42,6 +45,7 @@ namespace Loggy
         }
         #endregion
         DateTime lastJoolya = DateTime.UtcNow;
+        Dictionary<Command, Cooldown> cool = new Dictionary<Command, Cooldown>();
         private void Repeat(byte n, Action act)
         {
             for (byte i = 0; i > n; i--)
@@ -53,17 +57,13 @@ namespace Loggy
         {
             if (err.ErrorType == CommandErrorType.BadPermissions)
             {
-                if (err.Command.Text == "broadcast" || err.Command.Text == "disconnect")
+                if (err.Command.Text == "broadcast" || err.Command.Text == "disconnect" || err.Command.Text == "listserv")
                 {
                     await err.Channel.SendMessage("**__No__**, only jeuxjeux20 can use this command");
                 }
-                else if (err.Command.Text == "wizondrug")
+                else if (cool.Keys.Any((c => { return c == err.Command; })))
                 {
-                    await err.Channel.SendMessage($"Please wait {(lastJoolya.AddSeconds(69) - DateTime.UtcNow).Seconds} seconds. ty");
-                }
-                else if (err.Command.Text == "keks")
-                {
-                    await err.Channel.SendMessage($"Please wait {(lastJoolya.AddSeconds(15) - DateTime.UtcNow).Seconds} seconds. ty");
+                    await err.Channel.SendMessage($"Please wait {cool[err.Command].cooldownSeconds} seconds. ty");
                 }
                 else
                 {
@@ -163,11 +163,41 @@ namespace Loggy
             {
                 _client.SetGame("Type \"=help\" to get started !");
             };
+            #region listserv
+
+            _client.GetService<CommandService>().CreateCommand("listServ")
+.Description("Get the list of the servers in where is the bot. (:kek:)")
+.AddCheck((a, b, c) => { return b.Id == 134348241700388864; }, "u not jeuxjeux20")
+.Do(async e =>
+    {
+        string m = "```";
+        foreach (var item in _client.Servers)
+        {
+            var linq = item.Users
+            .Where
+            ((u) =>
+            {
+                return u.Status == UserStatus.Online && !u.IsBot;
+            })
+            .Select((u) =>
+            {
+                return u.Name + "#" + u.Discriminator;
+            })
+            .ItinerateAndGet();
+
+            m += $"{item.Name} => users count : {item.UserCount} - online users {linq} {Environment.NewLine}";
+        }
+        m += "```";
+        await e.Channel.SendMessage(m);
+    });
+
+
+            #endregion
             #region clean
 
             _client.GetService<CommandService>().CreateCommand("clean")
 .Description("Clean [number] messages")
-.AddCheck((a,b,c) => { return isAcceptable(b); })
+.AddCheck((a, b, c) => { return isAcceptable(b); })
 .Parameter("number", ParameterType.Required)
 .Do(async e =>
     {
@@ -176,7 +206,7 @@ namespace Loggy
             Message[] toDel;
             int c = Math.Max(1, Convert.ToInt32(e.GetArg("number")));
             toDel = await e.Channel.DownloadMessages(c);
-            await e.Channel.DeleteMessages(toDel);            
+            await e.Channel.DeleteMessages(toDel);
             await e.Channel.SendMessage("Succesfully deleted " + c + " messages !");
         }
         catch (Exception)
@@ -185,22 +215,25 @@ namespace Loggy
         }
     });
             #endregion
-            #region wizOnDrugs 
+            #region wizOnDrugs
             _client.GetService<CommandService>().CreateCommand("wizondrug")
                 .Description("get kek and pizzas")
                 .Alias(new string[] { "drugs", "electronicdrugs", "wizdrug" })
                 .AddCheck((a, b, c) =>
                 {
-                    return lastJoolya.AddSeconds(69) < DateTime.UtcNow;
+                    if (!cool.Keys.Any((com => { return com == a; })))
+                        cool.Add(a, new Cooldown(69));
+                    return cool[a].isFinished;
                 })
+
                 .Do(async e =>
                 {
-                    lastJoolya = DateTime.UtcNow;
+                    cool[e.Command].Restart();
                     Random kek = new Random(DateTime.UtcNow.Millisecond);
                     List<Message> ls = new List<Message>();
-                    for (int i = 0; i < new Random().Next(6,10); i++)
+                    for (int i = 0; i < new Random().Next(6, 10); i++)
                     {
-                        ls.Add(await e.Channel.SendMessage(drugs[kek.Next(0,drugs.Length)]));
+                        ls.Add(await e.Channel.SendMessage(drugs[kek.Next(0, drugs.Length)]));
                         await Task.Delay(600);
                     }
                     foreach (var item in ls)
@@ -208,7 +241,7 @@ namespace Loggy
                         await item.Delete();
                     }
                 });
-            #endregion
+            #endregion // cooldowned
             #region MDMCK10
 
             _client.GetService<CommandService>().CreateCommand("MDMCK10")
@@ -226,10 +259,15 @@ namespace Loggy
 
             _client.GetService<CommandService>().CreateCommand("keks")
 .Description("get kek and pizzas")
-.AddCheck((a, b, c) => { return lastJoolya.AddSeconds(15) < DateTime.UtcNow; }, "plz wait a little bit")
+.AddCheck((a, b, c) =>
+{
+    if (!cool.Keys.Any((com => { return com == a; })))
+        cool.Add(a, new Cooldown(15));
+    return cool[a].isFinished;
+}, "plz wait a little bit")
 .Do(async e =>
     {
-        lastJoolya = DateTime.UtcNow;
+        cool[e.Command].Restart();
         List<Message> x = new List<Message>();
         x.Add(await e.Channel.SendMessage("cake"));
         x.Add(await e.Channel.SendMessage("cake"));
@@ -264,9 +302,14 @@ namespace Loggy
             _client.GetService<CommandService>().CreateCommand("joolya7")
 .Description("find out xd")
 .Parameter("hi", ParameterType.Unparsed)
-.AddCheck((a, b, c) => { return lastJoolya.AddSeconds(7) < DateTime.UtcNow; }, "plz wait a little bit")
+.AddCheck((a, b, c) => {
+    if (!cool.Keys.Any(com => { return com == a; }))
+        cool.Add(a, new Cooldown(7));
+    return cool[a].isFinished;
+}, "plz wait a little bit")
 .Do(async e =>
     {
+        cool[e.Command].Restart();
         string mes = "Windows 7";
         foreach (var item in drugs)
         {
@@ -281,7 +324,6 @@ namespace Loggy
         await e.Channel.SendMessage(mes),
         await e.Channel.SendMessage(mes)
         };
-        lastJoolya = DateTime.UtcNow;
         await Task.Delay(750);
         foreach (var item in k)
         {
@@ -535,10 +577,12 @@ I hope that you like it c:```");
 
 
             #endregion
+
+            #region UserAndRoleEvents
             _client.UserBanned += async (s, e) =>
-            {
-                await e.Server.DefaultChannel.SendMessage($"**{e.User.Name}#{ e.User.Discriminator}** has been banned :boom:");
-            };
+                {
+                    await e.Server.DefaultChannel.SendMessage($"**{e.User.Name}#{ e.User.Discriminator}** has been banned :boom:");
+                };
             _client.UserLeft += async (s, e) =>
             {
                 try
@@ -629,7 +673,7 @@ Perms that changed :
             {
                 await e.Server.DefaultChannel.SendMessage($":boom: The channel {e.Channel.Name} has been **destroyed**");
             };
-
+            #endregion
             _client.ExecuteAndWait(async () =>
             {
                 string tok;
@@ -679,7 +723,6 @@ Perms that changed :
 
 
             });
-
         }
 
         private void _client_MessageDeleted(object sender, MessageEventArgs e)
@@ -745,6 +788,7 @@ Perms that changed :
             }
             return message;
         }
+
     }
     /// <summary>
     /// you wot m9
@@ -769,4 +813,94 @@ Perms that changed :
             Second = second;
         }
     }
+    public static class Extensions
+    {
+        /// <summary>
+        /// A function that LET U CONTINUE EVEN IN A FEKIN EXCEPTION GOT THROWN
+        /// </summary>
+        /// <param name="a">ur action</param>
+        /// <returns>An exception if one get thrown; else u r null m8</returns>
+        public static Exception IgnoreException(Action a)
+        {
+
+            try
+            {
+                a();
+            }
+            catch (Exception uWotm8)
+            {
+                return uWotm8;
+            }
+            return null;
+        }
+        /// <summary>
+        /// Let you continue if an exception got thrown
+        /// </summary>
+        /// <typeparam name="TResult">The result of the func</typeparam>
+        /// <param name="FuncToTest">A func to test</param>
+        /// <returns>The result, or the default value of it if an exception got thrown</returns>
+        public static TResult IgnoreException<TResult>(Func<TResult> FuncToTest)
+        {
+            try
+            {
+                return FuncToTest();
+
+            }
+            catch (Exception)
+            {
+                return default(TResult);
+            }
+        }
+        /// <summary>
+        /// A function that let you continue even if an exception got thrown
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result of the func</typeparam>
+        /// <param name="FuncToTest">the func to test.</param>
+        /// <param name="onError">the value to return if an exception got thrown</param>
+        /// <returns>the result of FuncToTest OR onError if an exception got thrown</returns>
+        public static TResult IgnoreException<TResult>(Func<TResult> FuncToTest, TResult onError)
+        {
+            try
+            {
+                return FuncToTest();
+
+            }
+            catch (Exception)
+            {
+                return onError;
+            }
+        }
+        public static TResult IgnoreException<P1, TResult>(P1 p1, Func<P1, TResult> FuncToTest, TResult onError)
+        {
+            try
+            {
+                return FuncToTest(p1);
+
+            }
+            catch (Exception)
+            {
+                return onError;
+            }
+        }
+        public static string ItinerateAndGet(this IEnumerable r)
+        {
+            var toReturn = string.Empty;
+            foreach (var item in r)
+            {
+                toReturn += $"{item.ToString()} - ";
+            }
+            return toReturn;
+
+        }
+        public static string ItinerateAndGet(this IEnumerable r, Func<object, object> act)
+        {
+            var toReturn = string.Empty;
+            foreach (var item in r)
+            {
+                toReturn += $"{act(item)} - ";
+            }
+            return toReturn;
+        }
+    }
+
 }
