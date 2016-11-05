@@ -63,7 +63,7 @@ namespace Loggy
                 }
                 else if (cool.Keys.Any((c => { return c == err.Command; })))
                 {
-                    await err.Channel.SendMessage($"Please wait {cool[err.Command].cooldownSeconds} seconds. ty");
+                    await err.Channel.SendMessage($"Please wait {cool[err.Command].secondsLeft} seconds. ty");
                 }
                 else
                 {
