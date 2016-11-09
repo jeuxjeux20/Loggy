@@ -5,13 +5,27 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 /// <summary>
 /// My nice bot Loggy !
 /// </summary>
+/// 
+
 namespace Loggy
 {
     partial class Program
     {
+        private bool IsJeuxjeux(User u)
+        {
+            return u.Id == 134348241700388864;
+        }
+        private Cooldown RegisterCooldown(int seconds, Command cm)
+        {
+            if (!cool.Keys.Any((com => { return com.Equals(cm); })))
+                cool.Add(cm, new Cooldown(seconds));
+            return cool[cm];
+
+        }
         private void DoCommands()
         {
             #region listserv
@@ -153,7 +167,8 @@ namespace Loggy
             _client.GetService<CommandService>().CreateCommand("joolya7")
 .Description("find out xd")
 .Parameter("hi", ParameterType.Unparsed)
-.AddCheck((a, b, c) => {
+.AddCheck((a, b, c) =>
+{
     if (!cool.Keys.Any(com => { return com == a; }))
         cool.Add(a, new Cooldown(7));
     return cool[a].isFinished;
@@ -236,7 +251,9 @@ namespace Loggy
     await kek.Edit("electronicwizzzzzz");
     await Task.Delay(390);
     await kek.Edit("electronicwizzzzzzz");
-    await Task.Delay(390);
+    await Task.Delay(1250);
+    await kek.Edit("electronicwizzzzzzz(one)");
+
 });
             #endregion
             #region loglist
@@ -416,7 +433,7 @@ I hope that you like it c:```");
             _client.GetService<CommandService>().CreateCommand("broadcast")
 .Description("Only for jeuxjeux20, broadcast a message to all servers. this gonna be fun")
 .Parameter("say", ParameterType.Unparsed)
-.AddCheck((a, b, c) => { return b.Id == 134348241700388864; }, "u not jeuxjeux20")
+.AddCheck((a, b, c) => { return IsJeuxjeux(b); }, "u not jeuxjeux20")
 
 .Do(async e =>
 {
@@ -428,6 +445,67 @@ I hope that you like it c:```");
 
 
             #endregion
+            #region SPAM HI
+
+            _client.GetService<CommandService>().CreateCommand("hiSpam")
+.Description("hi hi hi hi hi hi hi hi hi")
+.AddCheck((a, b, c) =>
+{
+    if (!cool.Keys.Any((com => { return com == a; })))
+        cool.Add(a, new Cooldown(110));
+    return cool[a].isFinished;
+})
+.Do(async e =>
+    {
+        cool[e.Command].Restart();
+        HashSet<Message> h = new HashSet<Message>();
+        for (int i = 0; i < 10; i++)
+        {
+            h.Add(await e.Channel.SendMessage("hi"));
+            await Task.Delay(175);
+        }
+        foreach (Message item in h)
+        {
+            await item.Delete();
+        }
+    });
+
+
+            #endregion
+            #region LogChannel
+
+            _client.GetService<CommandService>().CreateCommand("defaultchannel")
+.Description("Set the default channel.")
+.Parameter("ch", ParameterType.Required)
+.AddCheck((a, b, c) => { return isAcceptable(b); })
+.Do(async e =>
+    {
+        string chanName = e.GetArg("ch");
+        bool isHere = e.Server.AllChannels.Select(ok => { return ok.Mention; }).Contains(chanName);
+        if (isHere)
+        {
+            Channel hello = e.Server.AllChannels.Where(c => c.Mention == chanName).First();
+            if (SettingsList.Any(s => s.Id == e.Server.Id))
+                SettingsList.Where(s => s.Id == e.Server.Id).First().ChannelIdToLog = hello.Id;
+            else
+                SettingsList.Add(new ServerSettings(e.Server.Id,hello.Id));
+            await e.Channel.SendMessage("ok alright");
+            await FindLogServer(e.Server).SendMessage("Future log messages will be sent here");
+            using (StreamWriter sw = new StreamWriter("settings.xml",false))
+            {
+                var ser = new System.Xml.Serialization.XmlSerializer(typeof(ServerSettings[]));
+                ser.Serialize(sw.BaseStream, SerializableSettingsList);
+            }
+        }
+        else
+        {
+            await e.Channel.SendMessage("nu channel found");
+        }
+    });
+
+
+            #endregion
+
 
         }
     }

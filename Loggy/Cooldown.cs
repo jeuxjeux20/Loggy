@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -89,6 +90,56 @@ namespace Loggy
                 cooldownLength = a;
             }
             public readonly int cooldownLength;
+        }
+    }
+    /// <summary>
+    /// why did i created this
+    /// </summary>
+    public sealed class Joolya : IComparable
+    {
+        public List<Computer> myComputers = new List<Computer> { new Computer() };
+        public int CompareTo(object obj)
+        {
+            
+            if(obj is Joolya)
+            {
+                Joolya j = (Joolya)obj;
+                if (j.myComputers == myComputers)
+                {
+                    return 0;
+                }
+            }
+            return -1;
+        }
+
+        public string ToJoolya(string joo)
+        {
+            return joo += "...LOL!";
+        }
+    }
+    public class Computer : IEnumerable<Computer.Wirus>
+    {
+        public Computer() { }
+        public Computer(IEnumerable<Wirus> vs)
+        {
+            wiruses = (HashSet<Wirus>)vs;
+        }
+        public class Wirus
+        {
+            public string Name { get; set; }
+            public short Dangerousity { get; set; }
+        }
+        public HashSet<Wirus> wiruses = new HashSet<Wirus>();
+        public bool HasAVirus { get { return wiruses.Any(); } }
+
+        IEnumerator<Wirus> IEnumerable<Wirus>.GetEnumerator()
+        {
+            return ((IEnumerable<Wirus>)wiruses).GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable<Wirus>)wiruses).GetEnumerator();
         }
     }
 }

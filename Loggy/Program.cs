@@ -6,17 +6,17 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.CSharp;
 using System.Collections;
-using System.Diagnostics;
-
+using System.Xml.Serialization;
 namespace Loggy
 {
+    [Serializable]
     partial class Program
     {
+        List<Pair<Message, ulong>> rolesChanges = new List<Pair<Message, ulong>>();
         string[] drugs = new string[] { "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm", "Windows 7", "silent rd", "gruel", "memz", "bye" };
         static void Main(string[] args) => new Program().Start(args);
-        Dictionary<Channel,Channel> toRecord = new Dictionary<Channel, Channel>();
+        Dictionary<Channel, Channel> toRecord = new Dictionary<Channel, Channel>();
         #region Accept
         private bool isAcceptable(CommandEventArgs e)
         {
@@ -47,6 +47,22 @@ namespace Loggy
         #endregion
         DateTime lastJoolya = DateTime.UtcNow;
         Dictionary<Command, Cooldown> cool = new Dictionary<Command, Cooldown>();
+        private List<ServerSettings> SettingsList { get; set; } = new List<ServerSettings>();
+        public Channel FindLogServer(Server s)
+        {
+            var found = SettingsList.Where(se => { return se.Id == s.Id; });
+            if (found.Any())
+            {
+                return s.AllChannels.Where(c => found.First().ChannelIdToLog == c.Id).First();
+            }
+            else { return s.DefaultChannel; }
+        }
+        public ServerSettings[] SerializableSettingsList
+        {
+            get { return SettingsList.ToArray(); }
+            set { SettingsList = value.ToList(); }
+        }
+
         private void Repeat(byte n, Action act)
         {
             for (byte i = 0; i > n; i--)
@@ -87,7 +103,15 @@ namespace Loggy
                 }
                 else
                 {
-                    await err.Channel.SendMessage($"wait wtf : ```{err.Exception.Message} {err.Exception.StackTrace} {err.Exception.InnerException} ```");
+                    await Console.Out.WriteLineAsync(err.Exception.Message + " and omg " + err.Exception.InnerException);
+                    try
+                    {
+                        await err.Channel.SendMessage($"wait wtf : ```{err.Exception.Message} {err.Exception.InnerException} ```");
+                    }
+                    catch (Exception)
+                    {
+                        await err.Channel.SendMessage($"wtf {err.Exception.Message}");
+                    }
                 }
 
             }
@@ -116,8 +140,8 @@ namespace Loggy
             #region declares
             _client = new DiscordClient();
 
-            
-            #endregion           
+
+            #endregion
             _client.MessageReceived += async (s, e) =>
             {
                 foreach (KeyValuePair<Channel, Channel> item in toRecord)
@@ -159,10 +183,18 @@ namespace Loggy
 
                     }
                 };
+
             });
             _client.Ready += (s, e) =>
             {
                 _client.SetGame("Type \"=help\" to get started !");
+                try
+                {
+                    using (StreamReader sr = new StreamReader("settings.xml"))
+                    {
+                        SerializableSettingsList = (ServerSettings[])new XmlSerializer(typeof(ServerSettings[])).Deserialize(sr);
+                    }
+                } catch { }
             };
 
             DoCommands();
@@ -170,7 +202,7 @@ namespace Loggy
             #region UserAndRoleEvents
             _client.UserBanned += async (s, e) =>
                 {
-                    await e.Server.DefaultChannel.SendMessage($"**{e.User.Name}#{ e.User.Discriminator}** has been banned :boom:");
+                    await FindLogServer(e.Server).SendMessage($"**{e.User.Name}#{ e.User.Discriminator}** has been banned :boom:");
                 };
             _client.UserLeft += async (s, e) =>
             {
@@ -179,21 +211,21 @@ namespace Loggy
 
                     if (!(await e.Server.GetBans()).Contains(e.User))
                     {
-                        await e.Server.DefaultChannel.SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
+                        await FindLogServer(e.Server).SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
                     }
                 }
                 catch (Exception)
                 {
-                    await e.Server.DefaultChannel.SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
+                    await FindLogServer(e.Server).SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
                 }
             };
             _client.UserUnbanned += async (s, e) =>
             {
-                await e.Server.DefaultChannel.SendMessage($"{e.User.Name} has been unbanned from {e.Server.Name}.");
+                await FindLogServer(e.Server).SendMessage($"{e.User.Name} has been unbanned from {e.Server.Name}.");
             };
             _client.RoleCreated += async (s, e) =>
             {
-                var x = await e.Server.DefaultChannel.SendMessage($@"A role has been created :
+                var x = await FindLogServer(e.Server).SendMessage($@"A role has been created :
 Name : {e.Role.Name}
 IsMentionnable : {e.Role.IsMentionable}
 Position : {e.Role.Position}
@@ -207,7 +239,7 @@ This message will be deleted in 10 seconds.");
                 {
                     members += $"{item} ; ";
                 }
-                var x = await e.Server.DefaultChannel.SendMessage($@":boom: a role has been ~~destroyed~~ deleted. Name : {e.Role.Name} Members : {members}
+                var x = await FindLogServer(e.Server).SendMessage($@":boom: a role has been ~~destroyed~~ deleted. Name : {e.Role.Name} Members : {members}
 This message will be deleted in 10 seconds.");
                 new Task(async () => { await Task.Delay(10000); await x.Delete(); }).Start();
             };
@@ -239,28 +271,42 @@ This message will be deleted in 10 seconds.");
                     }
                 }
                 #endregion
-                var x = await e.Server.DefaultChannel.SendMessage($@"This message will be deleted in 10 seconds.
+                Message x = null;
+                string before = string.Empty;
+                string after = string.Empty;
+                if (rolesChanges.Any(something => { return something.Second.Equals(e.After.Id) && something != null; }))
+                {
+                    x = rolesChanges.Find(p => p.Second.Equals(e.After.Id)).First;
+                    await x.Edit($@"This message will be deleted in 10 seconds.
 A role has been changed. :
-**BEFORE**
-Name : {e.Before.Name},
-**AFTER**
-Name : {e.After.Name},
----------------------
+Name: {e.Before.Name} -> { e.After.Name}
+Perms that changed:
+{x.Text.Substring(x.Text.IndexOf("Perms that changed:") + x.Text.Length) + kek}
+");
+                }
+                else
+                {
+                    x = await FindLogServer(e.Server).SendMessage($@"This message will be deleted in 10 seconds.
+A role has been changed. :
+Name : {e.Before.Name} -> {e.After.Name}
+
 Perms that changed :
 {kek}
 "
 );
+                }
 
-                new Task(async () => { await Task.Delay(10000); await x.Delete(); }).Start();
-
+                rolesChanges.Add(new Pair<Message, ulong>(x, e.After.Id));
+                new Task(async () => { await Task.Delay(17500); await x.Delete(); }).Start();
+                rolesChanges = rolesChanges.Where(me => me.First != null).ToList();
             };
             _client.ChannelCreated += async (s, e) =>
             {
-                await e.Server.DefaultChannel.SendMessage($":white_check_mark: => A channel ({ e.Channel.Name} has been created !");
+                await FindLogServer(e.Server).SendMessage($":white_check_mark: => A channel ({ e.Channel.Name}) has been created !");
             };
             _client.ChannelDestroyed += async (s, e) =>
             {
-                await e.Server.DefaultChannel.SendMessage($":boom: The channel {e.Channel.Name} has been **destroyed**");
+                await FindLogServer(e.Server).SendMessage($":boom: The channel {e.Channel.Name} has been **destroyed**");
             };
             #endregion
             _client.ExecuteAndWait(async () =>
@@ -314,10 +360,7 @@ Perms that changed :
             });
         }
 
-        private void _client_MessageDeleted(object sender, MessageEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
+
         public string TextToEmoji(string input)
         {
             string message = "";
@@ -336,6 +379,7 @@ Perms that changed :
             {10, ":keycap_ten:"}
            };
             #endregion
+            #region sym
             Dictionary<char, string> sym = new Dictionary<char, string>()
            {
                 {'+', ":heavy_plus_sign: "},
@@ -345,8 +389,10 @@ Perms that changed :
                 {'.', ":black_small_square:"},
                 {'$', ":heavy_dollar_sign: " },
                 {'!',":exclamation:" },
-                {'?',":question:" }
+                {'?',":question:" },
+                {'*',":asterisk:" }
            };
+            #endregion
             foreach (char c in input.ToCharArray())
             {
                 if (char.IsLetter(c) && System.Text.RegularExpressions.Regex.IsMatch(c.ToString(), "^[a-zA-Z]*$"))
@@ -357,10 +403,6 @@ Perms that changed :
                 else if (char.IsDigit(c))
                 {
                     message += dict[int.Parse(c.ToString())];
-                }
-                else if (c == '*')
-                {
-                    message += ":asterisk:";
                 }
                 else if (sym.ContainsKey(c))
                 {
@@ -384,12 +426,15 @@ Perms that changed :
     /// </summary>
     /// <typeparam name="T1">the first m9</typeparam>
     /// <typeparam name="T2">the second m7</typeparam>
-    public class Pair<T1, T2> // ye it is public
+    [Serializable]
+    public class Pair<T1, T2>
     {
         /// <summary>
         /// topkek !
         /// </summary>
+        [XmlElement]
         public T1 First { get; set; }
+        [XmlElement]
         public T2 Second { get; set; }
         /// <summary>
         /// oh no let's construct this kek 
@@ -491,5 +536,25 @@ Perms that changed :
             return toReturn;
         }
     }
+    public class ServerSettings
+    {
+        [XmlAttribute("ServerId")]
+        public ulong Id { get; set; }
+        [XmlElement("ChannelId")]
+        public ulong ChannelIdToLog { get; set; }
+        public ServerSettings()
+        {
+            Id = 0;
+        }
+        public ServerSettings(ulong u)
+        {
+            Id = u;
+        }
+        public ServerSettings(ulong u, ulong s)
+        {
+            Id = u;
+            ChannelIdToLog = s;
+        }
 
+    }
 }
