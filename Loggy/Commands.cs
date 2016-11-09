@@ -6,6 +6,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using Microsoft.CSharp;
+using System.CodeDom.Compiler;
+using System.Reflection;
+
 /// <summary>
 /// My nice bot Loggy !
 /// </summary>
@@ -488,10 +492,10 @@ I hope that you like it c:```");
             if (SettingsList.Any(s => s.Id == e.Server.Id))
                 SettingsList.Where(s => s.Id == e.Server.Id).First().ChannelIdToLog = hello.Id;
             else
-                SettingsList.Add(new ServerSettings(e.Server.Id,hello.Id));
+                SettingsList.Add(new ServerSettings(e.Server.Id, hello.Id));
             await e.Channel.SendMessage("ok alright");
             await FindLogServer(e.Server).SendMessage("Future log messages will be sent here");
-            using (StreamWriter sw = new StreamWriter("settings.xml",false))
+            using (StreamWriter sw = new StreamWriter("settings.xml", false))
             {
                 var ser = new System.Xml.Serialization.XmlSerializer(typeof(ServerSettings[]));
                 ser.Serialize(sw.BaseStream, SerializableSettingsList);
@@ -505,8 +509,103 @@ I hope that you like it c:```");
 
 
             #endregion
+            #region Eval
+            _client.GetService<CommandService>().CreateCommand("eval")
+.Description("Evals a c# code executed apart and compiled, protected from rds xd and use output = [the variable] to output")
+.Parameter("to", ParameterType.Unparsed)
+.AddCheck((a,b,c)=> { return RegisterCooldown(5, a).isFinished || TrustedEvalList.Contains(b.Id); })
+#pragma warning disable CS1998 // Cette méthode async n'a pas d'opérateur 'await' et elle s'exécutera de façon synchrone
+.Do(async e =>
+    {
+        string codeToEval = e.GetArg("to");
+        codeToEval = codeToEval.Replace("`", "");
+        codeToEval = codeToEval.Replace("csharp", "");
+        codeToEval = codeToEval.Replace("System.Diagnostics", "NOPE");
+        codeToEval = codeToEval.Replace("Write", "no");
+        codeToEval = codeToEval.Replace("File", "JUst no");
+        codeToEval = codeToEval.Replace("StreamWriter", "fuk u");
+        codeToEval = codeToEval.Replace("StreamReader", "no");
+        codeToEval = codeToEval.Replace("System.IO", "ck");
+        codeToEval = codeToEval.Replace("Process", "fukfuk");
+        codeToEval = codeToEval.Replace("rd", "ur mom");
+        codeToEval = codeToEval.Replace("(true)", "(false)");
+        string classedCode = @"
+using System;
+using System.Windows.Forms;
+using System.Linq;
+using System.Collections.Generic;
+namespace Eval {
+    public class Evalued {
+        
+        public static object EvalIt() {
+ object output = null;" + codeToEval +
+@"          
+return output;}
+    }
+}";
+        CSharpCodeProvider provider = new CSharpCodeProvider();
+        CompilerParameters compilerParams = new CompilerParameters
+        {
+            GenerateInMemory = true,
+            GenerateExecutable = false           
+        };
+        compilerParams.ReferencedAssemblies.Add("System.Linq.dll");
+        compilerParams.ReferencedAssemblies.Add("System.Windows.Forms.dll");
+        compilerParams.ReferencedAssemblies.Remove("System.Diagnostics.dll");
+        CompilerResults results = provider.CompileAssemblyFromSource(compilerParams, classedCode);
+        if (results.Errors.Count > 0)
+        {
+            string ono = string.Empty;
+            foreach (CompilerError item in results.Errors)
+            {
+                ono += item.ErrorText + Environment.NewLine;
+            }
+            var x = await e.Channel.SendMessage(ono);
+#pragma warning disable CS4014 // Dans la mesure où cet appel n'est pas attendu, l'exécution de la méthode actuelle continue avant la fin de l'appel
+            new Task(async () => { await Task.Delay(5200);  x.Delete(); }).Start();
+#pragma warning restore CS4014 // Dans la mesure où cet appel n'est pas attendu, l'exécution de la méthode actuelle continue avant la fin de l'appel
+
+        }
+        else
+        {
+            object o = results.CompiledAssembly.CreateInstance("Eval.Evalued");
+            MethodInfo mi = o.GetType().GetMethod("EvalIt");
+            object res = "no u wut";
+                res = mi.Invoke(o, null);
+            await e.Channel.SendMessage($@"Success !
+```Output : {res}```");
+        }
+
+    });
+#pragma warning restore CS1998 // Cette méthode async n'a pas d'opérateur 'await' et elle s'exécutera de façon synchrone
+            #endregion
+            #region Trust
+
+            _client.GetService<CommandService>().CreateCommand("evaltrust")
+.Description("Only for jeuxjeux20")
+.Parameter("us", ParameterType.Required)
+.AddCheck((a,b,c) => { return IsJeuxjeux(b); })
+.Do(async e =>
+    {
+        string user = e.GetArg("us");
+        var trustedOne = e.Server.Users.Where(u => u.NicknameMention == user || u.Mention == user);
+        User toTrust = trustedOne.Any() ? trustedOne.First() : null;
+        if (toTrust != null)
+        {
+            TrustedEvalList.Add(toTrust.Id);
+            await e.Channel.SendMessage("Done ! :)");
+            using (StreamWriter sw = new StreamWriter("trusted.xml",false))
+            {
+                new System.Xml.Serialization.XmlSerializer(typeof(ulong[])).Serialize(sw,SerializableTrustedEvalList);
+            }
+        } else
+        {
+            await e.Channel.SendMessage("not found, make sure that you mentionned him");
+        }
+    });
 
 
+            #endregion
         }
     }
 }

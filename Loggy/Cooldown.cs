@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Loggy
@@ -12,7 +13,7 @@ namespace Loggy
     /// A cooldown
     /// </summary>
     /// <seealso cref="Stopwatch"/>
-    public sealed class Cooldown
+    public sealed class Cooldown : IAsyncResult
     {
         /// <summary>
         /// The private stopwatch of this class, the main compenent
@@ -23,10 +24,7 @@ namespace Loggy
         /// The cooldown seconds that has been set to this instance.
         /// </summary>
         public int cooldownSeconds { get; set; }
-            ///// <summary>
-            ///// An optional event when the Cooldown got Elapsed.
-            ///// </summary>
-            //public event EventHandler<CooldownElapsedEventArgs> CooldownElapsed;
+            public event EventHandler<CooldownElapsedEventArgs> CooldownElapsed;
         /// <summary>
         /// Returns true if the cooldown is finished
         /// </summary>
@@ -50,6 +48,42 @@ namespace Loggy
                     return null;
             }
         }
+        
+        bool IAsyncResult.IsCompleted
+        {
+            get
+            {
+                return isFinished;
+            }
+        }
+
+        WaitHandle IAsyncResult.AsyncWaitHandle
+        {
+            get
+            {
+                return null;
+            }
+        }
+
+        object IAsyncResult.AsyncState
+        {
+            get
+            {
+                return new Pair<int?, int>(secondsLeft, cooldownSeconds);
+            }
+        }
+
+        bool IAsyncResult.CompletedSynchronously
+        {
+            get
+            {
+                return false;
+            }
+        }
+        public static Cooldown operator +(Cooldown a,Cooldown b)
+        {
+            return new Cooldown(a.cooldownSeconds + b.cooldownSeconds);
+        }
         /// <summary>
         /// Restarts the cooldown.
         /// </summary>
@@ -65,15 +99,15 @@ namespace Loggy
         {
             cooldownSeconds = seconds;
             st.Start();
-            //new Task(() =>
-            //{
-            //    while (true)
-            //    {
-            //        if (isFinished)
-            //            CooldownElapsed(this,new CooldownElapsedEventArgs(this.cooldownSeconds));
-            //        while (!isFinished) ;
-            //    }
-            //}).Start();
+            new Task(async () =>
+            {
+                while (true)
+                {
+                    if (isFinished && CooldownElapsed != null)
+                        CooldownElapsed(this,new CooldownElapsedEventArgs(cooldownSeconds));
+                    await Task.Delay(secondsLeft ?? 10/ 2);
+                }
+            }).Start();
         }
         /// <summary>
         /// Resumes the cooldown into a string
@@ -83,18 +117,44 @@ namespace Loggy
         {
             return $"Cooldown seconds : {cooldownSeconds}";
         }
-        //public class CooldownElapsedEventArgs : EventArgs
-        //{
-        //    public CooldownElapsedEventArgs(int a)
-        //    {
-        //        cooldownLength = a;
-        //    }
-        //    public readonly int cooldownLength;
-        //}
+        public class CooldownElapsedEventArgs : EventArgs
+        {
+            public CooldownElapsedEventArgs(int a)
+            {
+                cooldownLength = a;
+            }
+            public readonly int cooldownLength;
+        }
+    }
+    [System.AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+    sealed class YoutuberAttribute : Attribute
+    {
+        // See the attribute guidelines at 
+        //  http://go.microsoft.com/fwlink/?LinkId=85236
+        readonly string positionalString;
+
+        // This is a positional argument
+        public YoutuberAttribute(string positionalString)
+        {
+            this.positionalString = positionalString;
+
+            // TODO: Implement code here
+                    
+            throw new NotImplementedException();
+        }
+
+        public string PositionalString
+        {
+            get { return positionalString; }
+        }
+
+        // This is a named argument
+        public int NamedInt { get; set; }
     }
     /// <summary>
     /// why did i created this
     /// </summary>
+    [Youtuber("Electronicwiz1")]
     public sealed class Joolya : IComparable
     {
         public List<Computer> myComputers = new List<Computer> { new Computer() };

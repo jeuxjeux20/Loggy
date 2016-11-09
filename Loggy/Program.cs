@@ -48,12 +48,18 @@ namespace Loggy
         DateTime lastJoolya = DateTime.UtcNow;
         Dictionary<Command, Cooldown> cool = new Dictionary<Command, Cooldown>();
         private List<ServerSettings> SettingsList { get; set; } = new List<ServerSettings>();
+        private List<ulong> TrustedEvalList { get; set; } = new List<ulong>();
+        private ulong[] SerializableTrustedEvalList
+        {
+            get { return TrustedEvalList.ToArray(); }
+            set { TrustedEvalList = value.ToList(); }
+        }
         public Channel FindLogServer(Server s)
         {
             var found = SettingsList.Where(se => { return se.Id == s.Id; });
             if (found.Any())
             {
-                return s.AllChannels.Where(c => found.First().ChannelIdToLog == c.Id).First();
+                return s.AllChannels.Where(c => found.First().ChannelIdToLog == c.Id).FirstOrDefault();
             }
             else { return s.DefaultChannel; }
         }
@@ -74,9 +80,13 @@ namespace Loggy
         {
             if (err.ErrorType == CommandErrorType.BadPermissions)
             {
-                if (err.Command.Text == "broadcast" || err.Command.Text == "disconnect" || err.Command.Text == "listserv")
+                if (err.Command.Text == "broadcast" || err.Command.Text == "disconnect" || err.Command.Text == "listserv" || err.Command.Text == "evaltrust")
                 {
                     await err.Channel.SendMessage("**__No__**, only jeuxjeux20 can use this command");
+                }
+                else if (err.Command.Text == "eval")
+                {
+                    await err.Channel.SendMessage("You aren't allowed to eval.");
                 }
                 else if (cool.Keys.Any((c => { return c == err.Command; })))
                 {
@@ -175,12 +185,18 @@ namespace Loggy
 
                     try
                     {
-                        await Console.Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator} ! invite link : {(await e.Server.GetInvites()).First()}");
+                        await Console.Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
                     }
                     catch (Exception)
                     {
-                        await Console.Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator} ! invite link : 403");
+                        try
+                        {
+                            await Console.Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
+                        }
+                        catch
+                        {
 
+                        }
                     }
                 };
 
@@ -194,7 +210,18 @@ namespace Loggy
                     {
                         SerializableSettingsList = (ServerSettings[])new XmlSerializer(typeof(ServerSettings[])).Deserialize(sr);
                     }
-                } catch { }
+                }
+                catch { }
+                try
+                {
+                    using (StreamReader sr = new StreamReader("trusted.xml"))
+                    {
+                        SerializableTrustedEvalList = (ulong[])new XmlSerializer(typeof(ulong[])).Deserialize(sr.BaseStream);
+                    }
+                }
+                catch (Exception)
+                {
+                }
             };
 
             DoCommands();
@@ -303,6 +330,7 @@ Perms that changed :
             _client.ChannelCreated += async (s, e) =>
             {
                 await FindLogServer(e.Server).SendMessage($":white_check_mark: => A channel ({ e.Channel.Name}) has been created !");
+
             };
             _client.ChannelDestroyed += async (s, e) =>
             {
