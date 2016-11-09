@@ -23,10 +23,10 @@ namespace Loggy
         /// The cooldown seconds that has been set to this instance.
         /// </summary>
         public int cooldownSeconds { get; set; }
-        /// <summary>
-        /// An optional event when the Cooldown got Elapsed.
-        /// </summary>
-        public event EventHandler<CooldownElapsedEventArgs> CooldownElapsed;
+            ///// <summary>
+            ///// An optional event when the Cooldown got Elapsed.
+            ///// </summary>
+            //public event EventHandler<CooldownElapsedEventArgs> CooldownElapsed;
         /// <summary>
         /// Returns true if the cooldown is finished
         /// </summary>
@@ -65,15 +65,15 @@ namespace Loggy
         {
             cooldownSeconds = seconds;
             st.Start();
-            new Task(() =>
-            {
-                while (true)
-                {
-                    if (isFinished)
-                        CooldownElapsed(this,new CooldownElapsedEventArgs(this.cooldownSeconds));
-                    while (!isFinished) ;
-                }
-            }).Start();
+            //new Task(() =>
+            //{
+            //    while (true)
+            //    {
+            //        if (isFinished)
+            //            CooldownElapsed(this,new CooldownElapsedEventArgs(this.cooldownSeconds));
+            //        while (!isFinished) ;
+            //    }
+            //}).Start();
         }
         /// <summary>
         /// Resumes the cooldown into a string
@@ -83,14 +83,14 @@ namespace Loggy
         {
             return $"Cooldown seconds : {cooldownSeconds}";
         }
-        public class CooldownElapsedEventArgs : EventArgs
-        {
-            public CooldownElapsedEventArgs(int a)
-            {
-                cooldownLength = a;
-            }
-            public readonly int cooldownLength;
-        }
+        //public class CooldownElapsedEventArgs : EventArgs
+        //{
+        //    public CooldownElapsedEventArgs(int a)
+        //    {
+        //        cooldownLength = a;
+        //    }
+        //    public readonly int cooldownLength;
+        //}
     }
     /// <summary>
     /// why did i created this
