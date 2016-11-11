@@ -8,6 +8,7 @@ using System.IO;
 using Microsoft.CSharp;
 using System.CodeDom.Compiler;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 /// <summary>
 /// My nice bot Loggy !
@@ -18,7 +19,7 @@ namespace Loggy
 {
     partial class Program
     {
-
+        private delegate Task<Message> SendM(string s);
         private bool IsJeuxjeux(User u)
         {
             return u.Id == 134348241700388864;
@@ -535,7 +536,7 @@ I hope that you like it c:```");
         codeToEval = codeToEval.Replace("rd", "ur mom");
         codeToEval = codeToEval.Replace("(true)", "(false)");
         string cl = string.Empty;
-        var Regex = new System.Text.RegularExpressions.Regex("\\[CD\\].*$",System.Text.RegularExpressions.RegexOptions.Singleline);
+        var Regex = new System.Text.RegularExpressions.Regex("\\[CD\\].*$", System.Text.RegularExpressions.RegexOptions.Singleline);
         if (codeToEval.Contains("[CD]"))
         {
             await e.Channel.SendMessage("CLASS DEFINITION FOUND");
@@ -543,7 +544,7 @@ I hope that you like it c:```");
         if (Regex.IsMatch(codeToEval))
         {
             string val = Regex.Match(codeToEval).Value;
-            codeToEval = codeToEval.Replace(val,"");
+            codeToEval = codeToEval.Replace(val, "");
             cl = val.Replace("[CD]", string.Empty);
         }
         string classedCode = @"
@@ -573,6 +574,7 @@ return output; }"
             CompilerOptions = "/optimize"
         };
         compilerParams.ReferencedAssemblies.Add("System.Core.dll");
+        _client.SetStatus(UserStatus.DoNotDisturb);
         CompilerResults results = null;
         try
         {
@@ -583,7 +585,7 @@ return output; }"
             await e.Channel.SendMessage($"Exception occured : {ex.Message}");
             goto oh;
         }
-
+        _client.SetStatus(UserStatus.Online);
         if (results.Errors.Count > 0)
         {
             string ono = string.Empty;
@@ -604,6 +606,7 @@ return output; }"
 ```Output : {res ?? "null"}```");
         }
         oh:
+        _client.SetStatus(UserStatus.Online);
         ;
     });
 #pragma warning restore CS1998 // Cette méthode async n'a pas d'opérateur 'await' et elle s'exécutera de façon synchrone
@@ -682,6 +685,7 @@ return output; }"
 .Description("allé marin le panné")
 .Do(async e =>
     {
+        
         List<string> prout = new List<string>
         {
             "Stop with lol",
@@ -690,13 +694,50 @@ return output; }"
             ":')",
             ":\")",
             "marin le pen",
-            "i h8 firec"
+            "i h8 firec",
+            "mé si cé posibl avec la cart kiwi",
+            "o poutine",
+            "ui",
+            "je veu fer un sit en .net"
         };
-        string m = prout.ElementAt(new Random().Next(0, prout.Count - 1));
+        string m = prout.ElementAt(new Random(DateTime.UtcNow.Millisecond + DateTime.Today.Second).Next(0, prout.Count - 1));
         await e.Channel.SendMessage(m);
-        #endregion
-    });
+      
 
+    });  
+            #endregion
+            #region cartkiwi
+
+            _client.GetService<CommandService>().CreateCommand("cartkiwi")
+    .Description("Description")
+    .Do(async e =>
+        {
+            string salut = @"Kiwiii !
+Avec la carte Kiwi, tu payes moitié prix.
+Et ton papa aussi.
+Et ta maman aussi.
+Et ton tonton aussi.
+Et ta marraine aussi.
+Billets s’il vous plait.
+Oui Ouiii!
+Voici la carte Kiwi. Nos billets moitié prix.
+Moitié prix? C’est pas possible!
+Mais si, c’est possible, avec la carte Kiwi, l’enfant de moins de seize ans
+et ceux qui l’accompagnent jusqu’à quatre personnes payent tous moitié prix.
+Un enfant, une carte Kiwi et on voyage à moitié prix.";
+            List<string> list = new List<string>(Regex.Split(salut, Environment.NewLine));
+            var x = await e.Channel.SendMessage("Cart kiwi c parti :");
+            string messag = x.RawText;
+            foreach (var item in list)
+            {
+                messag += $"{Environment.NewLine} {item}";
+                await x.Edit(messag);
+                await Task.Delay(1200 + item.Length * 25);
+            }
+        });
+
+
+            #endregion
 
         }
     }

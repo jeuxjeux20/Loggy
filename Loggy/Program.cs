@@ -16,8 +16,6 @@ namespace Loggy
         List<Pair<Message, ulong>> rolesChanges = new List<Pair<Message, ulong>>();
         string[] drugs = new string[] { "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm", "Windows 7", "silent rd", "gruel", "memz", "bye" };
         static string isRequired(string s) => s.EndsWith("}") ? "" : "}";
-
-
         static void Main(string[] args) => new Program().Start(args);
 
 
@@ -143,6 +141,7 @@ namespace Loggy
             }
         }
         private DiscordClient _client;
+
         private bool safeTo(Dictionary<Channel, Channel> dict, Pair<Channel, Channel> per)
         {
             bool k = true;
@@ -173,6 +172,7 @@ namespace Loggy
                     }
                 }
             };
+            
             _client.MessageUpdated += async (s, e) =>
             {
                 foreach (KeyValuePair<Channel, Channel> item in toRecord)
@@ -214,7 +214,7 @@ namespace Loggy
             });
             _client.Ready += (s, e) =>
             {
-                _client.SetGame("Type \"=help\" to get started !");
+                _client.SetGame("Type \"=help\" to get started !" );
                 try
                 {
                     using (StreamReader sr = new StreamReader("settings.xml"))
@@ -284,8 +284,10 @@ This message will be deleted in 10 seconds.");
             _client.RoleUpdated += async (s, e) =>
             {
                 Type ok = typeof(ServerPermissions);
+                Type secondk = typeof(Role);
                 Type boul = typeof(bool);
                 string kek = "";
+                string kek2 = string.Empty;
                 #region for
                 foreach (PropertyInfo propertyInfo in ok.GetProperties())
                 {
@@ -309,6 +311,8 @@ This message will be deleted in 10 seconds.");
                     }
                 }
                 #endregion
+                
+              
                 Message x = null;
                 string before = string.Empty;
                 string after = string.Empty;
@@ -327,7 +331,7 @@ Perms that changed:
                     x = await FindLogServer(e.Server).SendMessage($@"This message will be deleted in 10 seconds.
 A role has been changed. :
 Name : {e.Before.Name} -> {e.After.Name}
-
+{kek2}
 Perms that changed :
 {kek}
 "
@@ -385,6 +389,7 @@ Perms that changed :
                     goto Retry;
                 }
                 await Console.Out.WriteLineAsync("I guess i'm connected");
+
                 using (FileStream file = File.Open(AppDomain.CurrentDomain.BaseDirectory + "toke.t", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
                 {
                     using (var sw = new StreamWriter(file))
