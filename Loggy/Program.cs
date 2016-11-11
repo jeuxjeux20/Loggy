@@ -11,7 +11,7 @@ using System.Xml.Serialization;
 namespace Loggy
 {
     [Serializable]
-    partial class Program
+    public partial class Program
     {
         List<Pair<Message, ulong>> rolesChanges = new List<Pair<Message, ulong>>();
         string[] drugs = new string[] { "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm", "Windows 7", "silent rd", "gruel", "memz", "bye" };
@@ -140,7 +140,7 @@ namespace Loggy
                 new Task(async () => { await Task.Delay(1666); await x.Delete(); }).Start();
             }
         }
-        private DiscordClient _client;
+        protected DiscordClient _client;
 
         private bool safeTo(Dictionary<Channel, Channel> dict, Pair<Channel, Channel> per)
         {

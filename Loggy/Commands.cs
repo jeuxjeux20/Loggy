@@ -547,6 +547,8 @@ I hope that you like it c:```");
             codeToEval = codeToEval.Replace(val, "");
             cl = val.Replace("[CD]", string.Empty);
         }
+        SendM send = e.Channel.SendMessage; // sendmessage is normally a function
+        await send("Hello world");
         string classedCode = @"
 using System;
 using System.Linq;

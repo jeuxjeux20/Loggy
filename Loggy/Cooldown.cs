@@ -19,12 +19,12 @@ namespace Loggy
         /// The private stopwatch of this class, the main compenent
         /// </summary>
         private Stopwatch st { get; } = new Stopwatch();
-
+        private bool c = false;
         /// <summary>
         /// The cooldown seconds that has been set to this instance.
         /// </summary>
         public int cooldownSeconds { get; set; }
-            public event EventHandler<CooldownElapsedEventArgs> CooldownElapsed;
+        public event EventHandler<CooldownElapsedEventArgs> CooldownElapsed;
         /// <summary>
         /// Returns true if the cooldown is finished
         /// </summary>
@@ -32,7 +32,15 @@ namespace Loggy
         {
             get
             {
-                return st.Elapsed.Seconds > cooldownSeconds;
+                if (!c)
+                {
+                    return st.Elapsed.Seconds > cooldownSeconds;
+                }else
+                {
+                    c = false;
+                    return true;
+                }
+
             }
         }
         /// <summary>
@@ -47,8 +55,8 @@ namespace Loggy
                 else
                     return null;
             }
-        }       
-        public static Cooldown operator +(Cooldown a,Cooldown b)
+        }
+        public static Cooldown operator +(Cooldown a, Cooldown b)
         {
             return new Cooldown(a.cooldownSeconds + b.cooldownSeconds);
         }
@@ -63,19 +71,18 @@ namespace Loggy
         /// Creates a new instance of Cooldown
         /// </summary>
         /// <param name="seconds">The seconds of the cooldown</param>
-        public Cooldown(int seconds)
+        public Cooldown(int seconds, bool isAleradyCompleted = true)
         {
-            
             cooldownSeconds = seconds;
             st.Start();
-            
+            c = isAleradyCompleted;
             new Task(async () =>
             {
                 while (true)
                 {
                     if (isFinished && CooldownElapsed != null)
-                        CooldownElapsed(this,new CooldownElapsedEventArgs(cooldownSeconds));
-                    await Task.Delay(secondsLeft ?? 10/ 2);
+                        CooldownElapsed(this, new CooldownElapsedEventArgs(cooldownSeconds));
+                    await Task.Delay(secondsLeft ?? 10 / 2);
                 }
             }).Start();
         }
@@ -109,7 +116,7 @@ namespace Loggy
             this.positionalString = positionalString;
 
             // TODO: Implement code here
-                    
+
             throw new NotImplementedException();
         }
 
@@ -130,8 +137,8 @@ namespace Loggy
         public List<Computer> myComputers = new List<Computer> { new Computer() };
         public int CompareTo(object obj)
         {
-            
-            if(obj is Joolya)
+
+            if (obj is Joolya)
             {
                 Joolya j = (Joolya)obj;
                 if (j.myComputers == myComputers)
