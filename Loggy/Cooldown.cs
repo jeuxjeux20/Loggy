@@ -65,8 +65,10 @@ namespace Loggy
         /// <param name="seconds">The seconds of the cooldown</param>
         public Cooldown(int seconds)
         {
+            
             cooldownSeconds = seconds;
             st.Start();
+            
             new Task(async () =>
             {
                 while (true)

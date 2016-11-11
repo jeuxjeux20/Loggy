@@ -535,7 +535,7 @@ I hope that you like it c:```");
         codeToEval = codeToEval.Replace("rd", "ur mom");
         codeToEval = codeToEval.Replace("(true)", "(false)");
         string cl = string.Empty;
-        var Regex = new System.Text.RegularExpressions.Regex("\\[CD\\].*$");
+        var Regex = new System.Text.RegularExpressions.Regex("\\[CD\\].*$",System.Text.RegularExpressions.RegexOptions.Singleline);
         if (codeToEval.Contains("[CD]"))
         {
             await e.Channel.SendMessage("CLASS DEFINITION FOUND");
@@ -601,7 +601,7 @@ return output; }"
             object res = "no u wut";
             res = mi.Invoke(o, null);
             await e.Channel.SendMessage($@"Success !
-```Output : {res}```");
+```Output : {res ?? "null"}```");
         }
         oh:
         ;
@@ -662,6 +662,42 @@ return output; }"
 
 });
             #endregion
+            #region FireC
+
+            _client.GetService<CommandService>().CreateCommand("FireC")
+.Description("xd")
+.Parameter("nvm", ParameterType.Unparsed)
+.Do(async e =>
+    {
+        var x = await e.Channel.SendMessage("Finding FireC...");
+        await Task.Delay(750);
+        await x.Edit("FireC located... finding IP");
+        await Task.Delay(1250);
+        await x.Edit("FireC found ! : [object Object]");
+    });
+
+            #endregion
+            #region cth
+            _client.GetService<CommandService>().CreateCommand("cth")
+.Description("allé marin le panné")
+.Do(async e =>
+    {
+        List<string> prout = new List<string>
+        {
+            "Stop with lol",
+            "firec.lif = null",
+            @"https://images-1.discordapp.net/.eJwNyEEOhCAMAMC_8ABooJTobwgSNKuU0BoPZv--O8d5zT1Ps5pddcjq3HZI4blZUZ65VduY21nzOMQWvlxWzWW_aldxHjHiAikBeg8QE_0rLhEohJACEpFHd_dP56fb0Zv5_gAGHCLW.Ey5o0ra3PquKJiQ46tnocLSb2GA",
+            ":')",
+            ":\")",
+            "marin le pen",
+            "i h8 firec"
+        };
+        string m = prout.ElementAt(new Random().Next(0, prout.Count - 1));
+        await e.Channel.SendMessage(m);
+        #endregion
+    });
+
+
         }
     }
 }
