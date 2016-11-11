@@ -13,7 +13,7 @@ namespace Loggy
     /// A cooldown
     /// </summary>
     /// <seealso cref="Stopwatch"/>
-    public sealed class Cooldown : IAsyncResult
+    public sealed class Cooldown
     {
         /// <summary>
         /// The private stopwatch of this class, the main compenent
@@ -47,39 +47,7 @@ namespace Loggy
                 else
                     return null;
             }
-        }
-        
-        bool IAsyncResult.IsCompleted
-        {
-            get
-            {
-                return isFinished;
-            }
-        }
-
-        WaitHandle IAsyncResult.AsyncWaitHandle
-        {
-            get
-            {
-                return null;
-            }
-        }
-
-        object IAsyncResult.AsyncState
-        {
-            get
-            {
-                return new Pair<int?, int>(secondsLeft, cooldownSeconds);
-            }
-        }
-
-        bool IAsyncResult.CompletedSynchronously
-        {
-            get
-            {
-                return false;
-            }
-        }
+        }       
         public static Cooldown operator +(Cooldown a,Cooldown b)
         {
             return new Cooldown(a.cooldownSeconds + b.cooldownSeconds);

@@ -3,7 +3,6 @@ using Discord;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using Microsoft.CSharp;
@@ -19,17 +18,19 @@ namespace Loggy
 {
     partial class Program
     {
+
         private bool IsJeuxjeux(User u)
         {
             return u.Id == 134348241700388864;
         }
-        private Cooldown RegisterCooldown(int seconds, Command cm)
+        internal Cooldown RegisterCooldown(int seconds, Command cm)
         {
             if (!cool.Keys.Any((com => { return com.Equals(cm); })))
                 cool.Add(cm, new Cooldown(seconds));
             return cool[cm];
 
         }
+
         private void DoCommands()
         {
             #region listserv
@@ -511,9 +512,13 @@ I hope that you like it c:```");
             #endregion
             #region Eval
             _client.GetService<CommandService>().CreateCommand("eval")
-.Description("Evals a c# code executed apart and compiled, protected from rds xd and use output = [the variable] to output")
+.Description("Evals a c# code executed apart and compiled, protected from rds xd and use output = [the variable] to output ; for defining classes : put [CD] at the end of the code; then type your class ;)")
 .Parameter("to", ParameterType.Unparsed)
-.AddCheck((a,b,c)=> { return RegisterCooldown(5, a).isFinished || TrustedEvalList.Contains(b.Id); })
+.AddCheck((a, b, c) =>
+{
+
+    return /* RegisterCooldown(5, a).isFinished || TrustedEvalList.Contains(b.Id); */ true;
+})
 #pragma warning disable CS1998 // Cette méthode async n'a pas d'opérateur 'await' et elle s'exécutera de façon synchrone
 .Do(async e =>
     {
@@ -521,38 +526,64 @@ I hope that you like it c:```");
         codeToEval = codeToEval.Replace("`", "");
         codeToEval = codeToEval.Replace("csharp", "");
         codeToEval = codeToEval.Replace("System.Diagnostics", "NOPE");
-        codeToEval = codeToEval.Replace("Write", "no");
-        codeToEval = codeToEval.Replace("File", "JUst no");
-        codeToEval = codeToEval.Replace("StreamWriter", "fuk u");
-        codeToEval = codeToEval.Replace("StreamReader", "no");
         codeToEval = codeToEval.Replace("System.IO", "ck");
+        codeToEval = codeToEval.Replace("StreamWriter", "fuk_u");
+        codeToEval = codeToEval.Replace("StreamReader", "no");
+        codeToEval = codeToEval.Replace("File", "JUst no");
+        codeToEval = codeToEval.Replace("Write", "no");
         codeToEval = codeToEval.Replace("Process", "fukfuk");
         codeToEval = codeToEval.Replace("rd", "ur mom");
         codeToEval = codeToEval.Replace("(true)", "(false)");
+        string cl = string.Empty;
+        var Regex = new System.Text.RegularExpressions.Regex("\\[CD\\].*$");
+        if (codeToEval.Contains("[CD]"))
+        {
+            await e.Channel.SendMessage("CLASS DEFINITION FOUND");
+        }
+        if (Regex.IsMatch(codeToEval))
+        {
+            string val = Regex.Match(codeToEval).Value;
+            codeToEval = codeToEval.Replace(val,"");
+            cl = val.Replace("[CD]", string.Empty);
+        }
         string classedCode = @"
 using System;
-using System.Windows.Forms;
 using System.Linq;
 using System.Collections.Generic;
 namespace Eval {
-    public class Evalued {
-        
+    public class Evalued {        
         public static object EvalIt() {
- object output = null;" + codeToEval +
+            object output = null;"
+            + codeToEval +
 @"          
-return output;}
-    }
+return output; }"
++ cl +
+    @"}
 }";
-        CSharpCodeProvider provider = new CSharpCodeProvider();
+        Dictionary<string, string> providerOptions = new Dictionary<string, string>
+                {
+                    {"CompilerVersion", "v4.0"}
+                };
+        CSharpCodeProvider provider = new CSharpCodeProvider(providerOptions);
+
         CompilerParameters compilerParams = new CompilerParameters
         {
             GenerateInMemory = true,
-            GenerateExecutable = false           
+            GenerateExecutable = false,
+            CompilerOptions = "/optimize"
         };
-        compilerParams.ReferencedAssemblies.Add("System.Linq.dll");
-        compilerParams.ReferencedAssemblies.Add("System.Windows.Forms.dll");
-        compilerParams.ReferencedAssemblies.Remove("System.Diagnostics.dll");
-        CompilerResults results = provider.CompileAssemblyFromSource(compilerParams, classedCode);
+        compilerParams.ReferencedAssemblies.Add("System.Core.dll");
+        CompilerResults results = null;
+        try
+        {
+            results = provider.CompileAssemblyFromSource(compilerParams, classedCode);
+        }
+        catch (Exception ex)
+        {
+            await e.Channel.SendMessage($"Exception occured : {ex.Message}");
+            goto oh;
+        }
+
         if (results.Errors.Count > 0)
         {
             string ono = string.Empty;
@@ -561,21 +592,19 @@ return output;}
                 ono += item.ErrorText + Environment.NewLine;
             }
             var x = await e.Channel.SendMessage(ono);
-#pragma warning disable CS4014 // Dans la mesure où cet appel n'est pas attendu, l'exécution de la méthode actuelle continue avant la fin de l'appel
-            new Task(async () => { await Task.Delay(5200);  x.Delete(); }).Start();
-#pragma warning restore CS4014 // Dans la mesure où cet appel n'est pas attendu, l'exécution de la méthode actuelle continue avant la fin de l'appel
-
+            new Task(async () => { await Task.Delay(6000); await x.Delete(); }).Start();
         }
         else
         {
             object o = results.CompiledAssembly.CreateInstance("Eval.Evalued");
             MethodInfo mi = o.GetType().GetMethod("EvalIt");
             object res = "no u wut";
-                res = mi.Invoke(o, null);
+            res = mi.Invoke(o, null);
             await e.Channel.SendMessage($@"Success !
 ```Output : {res}```");
         }
-
+        oh:
+        ;
     });
 #pragma warning restore CS1998 // Cette méthode async n'a pas d'opérateur 'await' et elle s'exécutera de façon synchrone
             #endregion
@@ -584,7 +613,7 @@ return output;}
             _client.GetService<CommandService>().CreateCommand("evaltrust")
 .Description("Only for jeuxjeux20")
 .Parameter("us", ParameterType.Required)
-.AddCheck((a,b,c) => { return IsJeuxjeux(b); })
+.AddCheck((a, b, c) => { return IsJeuxjeux(b); })
 .Do(async e =>
     {
         string user = e.GetArg("us");
@@ -594,17 +623,44 @@ return output;}
         {
             TrustedEvalList.Add(toTrust.Id);
             await e.Channel.SendMessage("Done ! :)");
-            using (StreamWriter sw = new StreamWriter("trusted.xml",false))
+            using (StreamWriter sw = new StreamWriter("trusted.xml", false))
             {
-                new System.Xml.Serialization.XmlSerializer(typeof(ulong[])).Serialize(sw,SerializableTrustedEvalList);
+                new System.Xml.Serialization.XmlSerializer(typeof(ulong[])).Serialize(sw, SerializableTrustedEvalList);
             }
-        } else
+        }
+        else
         {
             await e.Channel.SendMessage("not found, make sure that you mentionned him");
         }
     });
 
 
+            #endregion
+            #region UNTRUST
+            _client.GetService<CommandService>().CreateCommand("untrust")
+.Description("Only for jeuxjeux20")
+.Parameter("us", ParameterType.Required)
+.AddCheck((a, b, c) => { return IsJeuxjeux(b); })
+.Do(async e =>
+{
+    string user = e.GetArg("us");
+    var trustedOne = e.Server.Users.Where(u => u.NicknameMention == user || u.Mention == user);
+    User toTrust = trustedOne.Any() ? trustedOne.First() : null;
+    if (toTrust != null)
+    {
+        TrustedEvalList.Remove(toTrust.Id);
+        await e.Channel.SendMessage("Done ! :)");
+        using (StreamWriter sw = new StreamWriter("trusted.xml", false))
+        {
+            new System.Xml.Serialization.XmlSerializer(typeof(ulong[])).Serialize(sw, SerializableTrustedEvalList);
+        }
+    }
+    else
+    {
+        await e.Channel.SendMessage("not found, make sure that you mentionned him");
+    }
+
+});
             #endregion
         }
     }

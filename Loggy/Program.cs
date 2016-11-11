@@ -15,6 +15,7 @@ namespace Loggy
     {
         List<Pair<Message, ulong>> rolesChanges = new List<Pair<Message, ulong>>();
         string[] drugs = new string[] { "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm", "Windows 7", "silent rd", "gruel", "memz", "bye" };
+        static string isRequired(string s) => s.EndsWith("}") ?  "" : "}";
         static void Main(string[] args) => new Program().Start(args);
         Dictionary<Channel, Channel> toRecord = new Dictionary<Channel, Channel>();
         #region Accept
@@ -47,13 +48,14 @@ namespace Loggy
         #endregion
         DateTime lastJoolya = DateTime.UtcNow;
         Dictionary<Command, Cooldown> cool = new Dictionary<Command, Cooldown>();
-        private List<ServerSettings> SettingsList { get; set; } = new List<ServerSettings>();
+        
         private List<ulong> TrustedEvalList { get; set; } = new List<ulong>();
         private ulong[] SerializableTrustedEvalList
         {
             get { return TrustedEvalList.ToArray(); }
             set { TrustedEvalList = value.ToList(); }
         }
+
         public Channel FindLogServer(Server s)
         {
             var found = SettingsList.Where(se => { return se.Id == s.Id; });
@@ -63,11 +65,13 @@ namespace Loggy
             }
             else { return s.DefaultChannel; }
         }
+
         public ServerSettings[] SerializableSettingsList
         {
             get { return SettingsList.ToArray(); }
             set { SettingsList = value.ToList(); }
         }
+        private List<ServerSettings> SettingsList { get; set; } = new List<ServerSettings>();
 
         private void Repeat(byte n, Action act)
         {
@@ -388,7 +392,7 @@ Perms that changed :
             });
         }
 
-
+        
         public string TextToEmoji(string input)
         {
             string message = "";
@@ -454,7 +458,7 @@ Perms that changed :
     /// </summary>
     /// <typeparam name="T1">the first m9</typeparam>
     /// <typeparam name="T2">the second m7</typeparam>
-    [Serializable]
+    [Serializable()]
     public class Pair<T1, T2>
     {
         /// <summary>
