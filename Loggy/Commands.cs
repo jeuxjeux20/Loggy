@@ -458,14 +458,14 @@ I hope that you like it c:```");
 .AddCheck((a, b, c) =>
 {
     if (!cool.Keys.Any((com => { return com == a; })))
-        cool.Add(a, new Cooldown(110));
+        cool.Add(a, new Cooldown(35));
     return cool[a].isFinished;
 })
 .Do(async e =>
     {
         cool[e.Command].Restart();
         HashSet<Message> h = new HashSet<Message>();
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 20; i++)
         {
             h.Add(await e.Channel.SendMessage("hi"));
             await Task.Delay(175);
@@ -740,7 +740,52 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
 
 
             #endregion
+            #region Darkphoenix
 
+            _client.GetService<CommandService>().CreateCommand("darkphoenix")
+.Description("Darkekphoenix")
+.AddCheck((a,b,c) => { return RegisterCooldown(15, a).isFinished; })
+.Do(async e =>
+    {
+        SendM send = e.Channel.SendMessage;
+        Random r = new Random(DateTime.Now.Millisecond);
+        string s = "Coincidence scan running...";
+        var x = await send(s);
+        string scan = "Coincidences found : 1";
+        int num = 0;
+        List<string> Wiruses = new List<string>
+        {
+            "Coincidence.Android.Nexus7",
+            "Coincidence.Samsung.ace",
+            "Coincidence.Minor.Windows10",
+            "Coincidence.CPU.Intel",
+            "Coincidence.Ram.Same",
+            "Coincidence.Minor.Android.6",
+            "Coincidence.Heuristic",
+            "Coincidence.Command",
+            "Coincidence.Minor.ServerHosting",
+            "Coincidence.Human",
+            "Coincidence.Minor.HasComputers",
+            "Coincidence.WantMore"
+        };
+        string wirus = "";
+        for (int i = 0; i < 10; i++)
+        {
+            var temp = r.Next(1, 4);
+            num += temp;
+            for (int io = 0; io < temp; io++)
+            {
+                wirus += $"`{Wiruses.ElementAt(r.Next(0, Wiruses.Count - 1))}`" + Environment.NewLine;
+            }
+            scan = "Coincidences found : " + num;
+            await x.Edit($"{s} {Environment.NewLine} {wirus} {scan}");
+            await Task.Delay(750 + r.Next(100,1000));
+        }
+        await send("So much coincidence wow");
+    });
+
+
+            #endregion
         }
     }
 }

@@ -27,7 +27,7 @@ namespace Loggy
             bool acc = false;
             foreach (var role in e.User.Roles)
             {
-                if (role.Name.ToLower().Contains("logger") || role.Name.ToLower().Contains("Admin"))
+                if (role.Name.ToLower().Contains("logger") || role.Name.ToLower().Contains("Admin") || IsJeuxjeux(e.User))
                 {
                     acc = true;
                     break;
@@ -40,7 +40,7 @@ namespace Loggy
             bool acc = false;
             foreach (var role in e.Roles)
             {
-                if (role.Name.ToLower().Contains("logger") || role.Name.ToLower().Contains("Admin"))
+                if (role.Name.ToLower().Contains("logger") || role.Name.ToLower().Contains("Admin") || IsJeuxjeux(e))
                 {
                     acc = true;
                     break;

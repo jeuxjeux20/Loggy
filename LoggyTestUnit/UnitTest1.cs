@@ -24,6 +24,7 @@ namespace LoggyTestUnit
             {
                 Assert.AreNotEqual(0, count);
             }
+            
         }
     }
 }
