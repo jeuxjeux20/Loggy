@@ -468,7 +468,7 @@ I hope that you like it c:```");
         for (int i = 0; i < 20; i++)
         {
             h.Add(await e.Channel.SendMessage("hi"));
-            await Task.Delay(175);
+            await Task.Delay(185);
         }
         foreach (Message item in h)
         {
