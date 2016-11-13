@@ -31,7 +31,7 @@ namespace Loggy
             return cool[cm];
 
         }
-
+        
         private void DoCommands()
         {
             #region listserv
@@ -460,6 +460,7 @@ I hope that you like it c:```");
     if (!cool.Keys.Any((com => { return com == a; })))
         cool.Add(a, new Cooldown(35));
     return cool[a].isFinished;
+
 })
 .Do(async e =>
     {
@@ -520,7 +521,6 @@ I hope that you like it c:```");
 
     return /* RegisterCooldown(5, a).isFinished || TrustedEvalList.Contains(b.Id); */ true;
 })
-#pragma warning disable CS1998 // Cette méthode async n'a pas d'opérateur 'await' et elle s'exécutera de façon synchrone
 .Do(async e =>
     {
         string codeToEval = e.GetArg("to");
@@ -534,7 +534,8 @@ I hope that you like it c:```");
         codeToEval = codeToEval.Replace("Write", "no");
         codeToEval = codeToEval.Replace("Process", "fukfuk");
         codeToEval = codeToEval.Replace("rd", "ur mom");
-        codeToEval = codeToEval.Replace("(true)", "(false)");
+        codeToEval = codeToEval.Replace("while", "disabled");
+        codeToEval = codeToEval.Replace("for", "disabled");
         string cl = string.Empty;
         var Regex = new System.Text.RegularExpressions.Regex("\\[CD\\].*$", System.Text.RegularExpressions.RegexOptions.Singleline);
         if (codeToEval.Contains("[CD]"))
@@ -547,8 +548,6 @@ I hope that you like it c:```");
             codeToEval = codeToEval.Replace(val, "");
             cl = val.Replace("[CD]", string.Empty);
         }
-        SendM send = e.Channel.SendMessage; // sendmessage is normally a function
-        await send("Hello world");
         string classedCode = @"
 using System;
 using System.Linq;
@@ -578,15 +577,16 @@ return output; }"
         compilerParams.ReferencedAssemblies.Add("System.Core.dll");
         _client.SetStatus(UserStatus.DoNotDisturb);
         CompilerResults results = null;
-        try
+        var myTask = Task.Factory.StartNew(() =>
         {
-            results = provider.CompileAssemblyFromSource(compilerParams, classedCode);
-        }
-        catch (Exception ex)
-        {
-            await e.Channel.SendMessage($"Exception occured : {ex.Message}");
-            goto oh;
-        }
+            return provider.CompileAssemblyFromSource(compilerParams, classedCode);
+        });    
+            results = await myTask;
+        //catch (Exception ex)
+        //{
+        //    await e.Channel.SendMessage($"Exception occured : {ex.Message}");
+        //    goto oh;
+        //}
         _client.SetStatus(UserStatus.Online);
         if (results.Errors.Count > 0)
         {
@@ -607,7 +607,7 @@ return output; }"
             await e.Channel.SendMessage($@"Success !
 ```Output : {res ?? "null"}```");
         }
-        oh:
+       
         _client.SetStatus(UserStatus.Online);
         ;
     });
@@ -678,7 +678,14 @@ return output; }"
         await Task.Delay(750);
         await x.Edit("FireC located... finding IP");
         await Task.Delay(1250);
-        await x.Edit("FireC found ! : [object Object]");
+        uint kek = 1;
+        while (kek <= 100)
+        {
+            await x.Edit("Parsing and deserializing FireC, this may take a while" + Environment.NewLine + ASCIIBar.DrawProgressBar(kek) + $" - {kek}%");
+            kek += (uint)new Random(DateTime.Now.Millisecond).Next(1, 15);
+            await Task.Delay(250);
+        }
+        await x.Edit("FireC found ! : Pair<Discord.User`1,List<Hentai>>");
     });
 
             #endregion
@@ -687,7 +694,7 @@ return output; }"
 .Description("allé marin le panné")
 .Do(async e =>
     {
-        
+
         List<string> prout = new List<string>
         {
             "Stop with lol",
@@ -704,9 +711,9 @@ return output; }"
         };
         string m = prout.ElementAt(new Random(DateTime.UtcNow.Millisecond + DateTime.Today.Second).Next(0, prout.Count - 1));
         await e.Channel.SendMessage(m);
-      
 
-    });  
+
+    });
             #endregion
             #region cartkiwi
 
@@ -742,9 +749,9 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
             #endregion
             #region Darkphoenix
 
-            _client.GetService<CommandService>().CreateCommand("darkphoenix")
+            _client.GetService<CommandService>().CreateCommand("darkpheonix")
 .Description("Darkekphoenix")
-.AddCheck((a,b,c) => { return RegisterCooldown(15, a).isFinished; })
+.AddCheck((a, b, c) => { return RegisterCooldown(15, a).isFinished; })
 .Do(async e =>
     {
         SendM send = e.Channel.SendMessage;
@@ -779,13 +786,76 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
             }
             scan = "Coincidences found : " + num;
             await x.Edit($"{s} {Environment.NewLine} {wirus} {scan}");
-            await Task.Delay(750 + r.Next(100,1000));
+            await Task.Delay(750 + r.Next(100, 1000));
         }
         await send("So much coincidence wow");
     });
 
 
             #endregion
+            #region GetInvite
+
+            _client.GetService<CommandService>().CreateCommand("grabinvite")
+.Description("GRAB GRAB GRAB THAT INVITE :3333")
+.Parameter("grab", ParameterType.Unparsed)
+.Do(async e =>
+    {
+        SendM Send = e.Channel.SendMessage;
+        if (e.User.Id == 244509121838186497)
+        {
+            await Send("Grabbing that pussy...");
+        }
+        else
+            await Send("Grabbing...");
+        string grabgrabgrabthatshit = e.GetArg("grab").ToLower();
+        var servs = _client.Servers.Where(s => s.Name.ToLower().Contains(grabgrabgrabthatshit));
+        if (servs.Any())
+        {
+            try
+            {
+                var invit = (await servs.First().GetInvites()).Where(inv => !inv.IsRevoked);
+                var inviturl = invit.First().Url.Remove(18, 1);
+                if (invit.Any())
+                    await Send($"Returning the first one : {Environment.NewLine} {inviturl}");
+                else
+                    await Send("No Invites found");
+            }
+            catch
+            {
+                await Send(":warning: the bot failed to get the invite.");
+            }
+        }
+        else
+        {
+            await Send("The server couldn't be found :(");
+        }
+    });
+
+
+            #endregion
+            #region spam spam
+ _client.GetService<CommandService>().CreateCommand("spam")
+.Description("spamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspam")
+.Parameter("spammy", ParameterType.Unparsed)
+.Do(async e =>
+    {
+        string spummmy = e.GetArg("spammy");
+        HashSet<Message> m = new HashSet<Message>();
+        for (int i = 0; i < 6; i++)
+        {
+            m.Add(await e.Channel.SendMessage(spummmy));
+            await Task.Delay(250);
+        }
+        await Task.Delay(2500);
+        foreach (var item in m)
+        {
+            await item.Delete();
+        }
+    });
+            #endregion
+           
+
+
         }
     }
 }

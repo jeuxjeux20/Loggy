@@ -67,17 +67,20 @@ namespace Loggy
 
         public Channel FindLogServer(Server s)
         {
-            var found = SettingsList.Where(se => { return se.Id == s.Id; });
-            if (found.Any())
+            try
             {
-                return s.AllChannels.Where(c => found.First().ChannelIdToLog == c.Id).FirstOrDefault();
+                var found = SettingsList.Where(se => { return se.Id == s.Id; });
+                if (found.Any())
+                {
+                    return s.AllChannels.Where(c => found.First().ChannelIdToLog == c.Id).FirstOrDefault();
+                }
+                else { return s.DefaultChannel; }
+            }catch
+            {
+                return s.DefaultChannel;
             }
-            else { return s.DefaultChannel; }
+            
         }
-
-
-
-
         private void Repeat(byte n, Action act)
         {
             for (byte i = 0; i > n; i--)
@@ -172,7 +175,7 @@ namespace Loggy
                     }
                 }
             };
-            
+
             _client.MessageUpdated += async (s, e) =>
             {
                 foreach (KeyValuePair<Channel, Channel> item in toRecord)
@@ -214,7 +217,7 @@ namespace Loggy
             });
             _client.Ready += (s, e) =>
             {
-                _client.SetGame("Type \"=help\" to get started !" );
+                _client.SetGame("Type \"=help\" to get started !");
                 try
                 {
                     using (StreamReader sr = new StreamReader("settings.xml"))
@@ -311,8 +314,6 @@ This message will be deleted in 10 seconds.");
                     }
                 }
                 #endregion
-                
-              
                 Message x = null;
                 string before = string.Empty;
                 string after = string.Empty;
@@ -323,7 +324,7 @@ This message will be deleted in 10 seconds.");
 A role has been changed. :
 Name: {e.Before.Name} -> { e.After.Name}
 Perms that changed:
-{x.Text.Substring(x.Text.IndexOf("Perms that changed:") + x.Text.Length) + kek}
+{x.Text.Substring(x.Text.IndexOf("Perms that changed:")) + kek}
 ");
                 }
                 else
@@ -586,7 +587,7 @@ Perms that changed :
         public ulong Id { get; set; }
         [XmlElement("ChannelId")]
         public ulong ChannelIdToLog { get; set; }
-        
+
         public ServerSettings()
         {
             Id = 0;
