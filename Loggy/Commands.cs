@@ -918,7 +918,12 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
         if (rol.Any())
         {
             var kek = rol.First();
-           
+            var thingy = typeof(Color);
+            List<Color> toColor = new List<Color>();
+            foreach (FieldInfo item in thingy.GetFields())
+            {
+                toColor.Add(item.GetValue(new object()) as Color);
+            }
         }
         await Task.Delay(1);
     });
