@@ -8,6 +8,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Collections;
 using System.Xml.Serialization;
+using System.Text.RegularExpressions;
+using static System.Console;
 namespace Loggy
 {
     [Serializable]
@@ -72,14 +74,29 @@ namespace Loggy
                 var found = SettingsList.Where(se => { return se.Id == s.Id; });
                 if (found.Any())
                 {
-                    return s.AllChannels.Where(c => found.First().ChannelIdToLog == c.Id).FirstOrDefault();
+                    return s.AllChannels.Where(c => found.First().ChannelIdToLog == c.Id).First();
                 }
                 else { return s.DefaultChannel; }
-            }catch
+            }
+            catch
             {
                 return s.DefaultChannel;
             }
             
+        }
+        private ServerSettings FindServSettings(Server ser)
+        {
+            if (SettingsList.Any(s => s.Id == ser.Id))
+            {
+                Out.WriteLineAsync("ohoh");
+                return SettingsList.Where(s => s.Id.Equals(ser.Id)).First();
+            }
+            else
+            {
+                var a = new ServerSettings(ser.Id); SettingsList.Add(a);
+                return a;
+            }
+
         }
         private void Repeat(byte n, Action act)
         {
@@ -123,12 +140,17 @@ namespace Loggy
                 {
                     await err.Channel.SendMessage("No parameters provided, m9");
                 }
+                else if (err.Exception is CommandSentByBotException)
+                {
+                    await Out.WriteLineAsync($"haha nice try {err.User.Mention}");
+                }
                 else
                 {
-                    await Console.Out.WriteLineAsync(err.Exception.Message + " and omg " + err.Exception.InnerException);
+                    await Out.WriteLineAsync(err.Exception.Message + " and omg " + err.Exception.InnerException);
                     try
                     {
                         await err.Channel.SendMessage($"wait wtf : ```{err.Exception.Message} {err.Exception.InnerException} ```");
+                       await Out.WriteLineAsync($"{err.Exception.Message} {err.Exception.InnerException} {err.Exception.StackTrace}");
                     }
                     catch (Exception)
                     {
@@ -137,14 +159,18 @@ namespace Loggy
                 }
 
             }
-            else if (err.ErrorType == CommandErrorType.UnknownCommand)
-            {
-                var x = await err.Channel.SendMessage($"Unknown command. `{err.Message.Text}`");
-                new Task(async () => { await Task.Delay(1666); await x.Delete(); }).Start();
-            }
+            
         }
         protected DiscordClient _client;
-
+        private void SerializeServerSettingsAndSave()
+        {
+            using (StreamWriter sw = new StreamWriter("settings.xml", false))
+            {
+                var ser = new XmlSerializer(typeof(ServerSettings[]));
+                ser.Serialize(sw.BaseStream, SerializableSettingsList);
+            }
+            Out.WriteLineAsync("serialization done");
+        }
         private bool safeTo(Dictionary<Channel, Channel> dict, Pair<Channel, Channel> per)
         {
             bool k = true;
@@ -171,7 +197,8 @@ namespace Loggy
                 {
                     if (e.Channel == item.Key)
                     {
-                        await item.Value.SendMessage($"#{e.Channel.Name} | **{e.Message.User}** said : {e.Message.Text}");
+                        await Task.Delay(new Random(DateTime.Now.Millisecond).Next(1000, 3000));
+                        await item.Value.SendMessage($"#{e.Channel.Name} | **{e.Message.User}** said : {e.Message.Text.Replace("@", "*@*")}");
                     }
                 }
             };
@@ -196,16 +223,17 @@ namespace Loggy
                 x.ErrorHandler += async (a, b) => { await ok(a, b); };
                 x.ExecuteHandler += async (a, e) =>
                 {
-
+                    if (e.User.IsBot)
+                        throw new CommandSentByBotException();
                     try
                     {
-                        await Console.Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
+                        await Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
                     }
                     catch (Exception)
                     {
                         try
                         {
-                            await Console.Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
+                            await Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
                         }
                         catch
                         {
@@ -286,6 +314,10 @@ This message will be deleted in 10 seconds.");
             };
             _client.RoleUpdated += async (s, e) =>
             {
+                if (!FindServSettings(e.Server).RoleUpdatesMessage)
+                {
+                    goto nope;
+                }
                 Type ok = typeof(ServerPermissions);
                 Type secondk = typeof(Role);
                 Type boul = typeof(bool);
@@ -320,12 +352,19 @@ This message will be deleted in 10 seconds.");
                 if (rolesChanges.Any(something => { return something.Second.Equals(e.After.Id) && something != null; }))
                 {
                     x = rolesChanges.Find(p => p.Second.Equals(e.After.Id)).First;
-                    await x.Edit($@"This message will be deleted in 10 seconds.
+                    try
+                    {
+                        await x.Edit($@"This message will be deleted in 10 seconds.
 A role has been changed. :
-Name: {e.Before.Name} -> { e.After.Name}
+Name: {e.Before.Name.Replace("@", "*@*")} -> {e.After.Name.Replace("@", "*@*")}
 Perms that changed:
-{x.Text.Substring(x.Text.IndexOf("Perms that changed:")) + kek}
+{Regex.Match(x.Text, "changed:(.*)", RegexOptions.Singleline).Groups[1] + kek}
 ");
+                    }
+                    catch (Exception)
+                    {
+                        await FindLogServer(e.Server).SendMessage($"mhm something weird happened");
+                    }
                 }
                 else
                 {
@@ -333,7 +372,7 @@ Perms that changed:
 A role has been changed. :
 Name : {e.Before.Name} -> {e.After.Name}
 {kek2}
-Perms that changed :
+Perms that changed:
 {kek}
 "
 );
@@ -342,6 +381,7 @@ Perms that changed :
                 rolesChanges.Add(new Pair<Message, ulong>(x, e.After.Id));
                 new Task(async () => { await Task.Delay(17500); await x.Delete(); }).Start();
                 rolesChanges = rolesChanges.Where(me => me.First != null).ToList();
+                nope:;
             };
             _client.ChannelCreated += async (s, e) =>
             {
@@ -383,13 +423,13 @@ Perms that changed :
                 }
                 catch (Exception)
                 {
-                    await Console.Out.WriteLineAsync("Insert token plesssss");
-                    await Console.Out.FlushAsync();
+                    await Out.WriteLineAsync("Insert token plesssss");
+                    await Out.FlushAsync();
                     kek = await Console.In.ReadLineAsync();
                     tok = kek;
                     goto Retry;
                 }
-                await Console.Out.WriteLineAsync("I guess i'm connected");
+                await Out.WriteLineAsync("I guess i'm connected");
 
                 using (FileStream file = File.Open(AppDomain.CurrentDomain.BaseDirectory + "toke.t", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
                 {
@@ -404,13 +444,17 @@ Perms that changed :
 
             });
         }
-
-
-        public string TextToEmoji(string input)
+        public enum TextEmojiOptions
         {
-            string message = "";
+             Lowercase,
+             NoOptions
+        }
+
+        public string TextToEmoji(string input,TextEmojiOptions top = TextEmojiOptions.NoOptions)
+        {
+            string message = top == TextEmojiOptions.Lowercase ? "​" : "";
             #region dict
-            Dictionary<int, string> dict = new Dictionary<int, string>() {
+            Dictionary <int, string> dict = new Dictionary<int, string>() {
             {0, ":zero:"},
             {1, ":one:"},
             {2, ":two:"},
@@ -471,7 +515,7 @@ Perms that changed :
     /// </summary>
     /// <typeparam name="T1">the first m9</typeparam>
     /// <typeparam name="T2">the second m7</typeparam>
-    [Serializable()]
+    [Serializable]
     public class Pair<T1, T2>
     {
         /// <summary>
@@ -587,6 +631,8 @@ Perms that changed :
         public ulong Id { get; set; }
         [XmlElement("ChannelId")]
         public ulong ChannelIdToLog { get; set; }
+        [XmlElement("RoleUpdates")]
+        public bool RoleUpdatesMessage { get; set; } = true;
 
         public ServerSettings()
         {
@@ -600,7 +646,9 @@ Perms that changed :
         {
             Id = u;
             ChannelIdToLog = s;
+            
         }
+        
 
     }
 }

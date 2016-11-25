@@ -31,7 +31,17 @@ namespace Loggy
             return cool[cm];
 
         }
-        
+
+        [Serializable]
+        public class CommandSentByBotException : Exception
+        {
+            public CommandSentByBotException() { }
+            public CommandSentByBotException(string message) : base(message) { }
+            public CommandSentByBotException(string message, Exception inner) : base(message, inner) { }
+            protected CommandSentByBotException(
+              System.Runtime.Serialization.SerializationInfo info,
+              System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+        }
         private void DoCommands()
         {
             #region listserv
@@ -92,9 +102,7 @@ namespace Loggy
                 .Alias(new string[] { "drugs", "electronicdrugs", "wizdrug" })
                 .AddCheck((a, b, c) =>
                 {
-                    if (!cool.Keys.Any((com => { return com == a; })))
-                        cool.Add(a, new Cooldown(69));
-                    return cool[a].isFinished;
+                    return RegisterCooldown(50, a).isFinished;
                 })
 
                 .Do(async e =>
@@ -218,10 +226,19 @@ namespace Loggy
    .Parameter("param1", ParameterType.Unparsed)
    .Do(async e =>
    {
+       Channel chtosend;
+       if ((e.Server.Id == 110373943822540800 && e.Channel.Name == "general"))
+       {
+           chtosend = e.Server.AllChannels.Where(w => w.Name == @"testing-[\]").First();
+           await Console.Out.WriteLineAsync("found k");
+       } else
+       {
+           chtosend = e.Channel;
+       }
        string original = e.GetArg("param1").ToLower();
-       string message = TextToEmoji(original);
+       string message = TextToEmoji(original,TextEmojiOptions.Lowercase);
 
-       await e.Channel.SendMessage(message);
+       await chtosend.SendMessage(message);
    });
             #endregion // this one everyone loves it idk why
             #region etiTopkek
@@ -719,8 +736,10 @@ return output; }"
 
             _client.GetService<CommandService>().CreateCommand("cartkiwi")
     .Description("Description")
+    .AddCheck((a,b,c) => { return RegisterCooldown(240, a).isFinished && c.Server.Id == 249545918821433354; })
     .Do(async e =>
         {
+            cool[e.Command].Restart();
             string salut = @"Kiwiii !
 Avec la carte Kiwi, tu payes moitié prix.
 Et ton papa aussi.
@@ -837,8 +856,10 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
  _client.GetService<CommandService>().CreateCommand("spam")
 .Description("spamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspam")
 .Parameter("spammy", ParameterType.Unparsed)
+.AddCheck((a,b,c) => { return RegisterCooldown(20, a).isFinished; })
 .Do(async e =>
     {
+        cool[e.Command].Restart();
         string spummmy = e.GetArg("spammy");
         HashSet<Message> m = new HashSet<Message>();
         for (int i = 0; i < 6; i++)
@@ -846,6 +867,7 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
             m.Add(await e.Channel.SendMessage(spummmy));
             await Task.Delay(250);
         }
+        
         await Task.Delay(2500);
         foreach (var item in m)
         {
@@ -853,9 +875,55 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
         }
     });
             #endregion
-           
+            #region Role
+
+            _client.GetService<CommandService>().CreateCommand("roleUpdates")
+.Description("Select if you wanna get updates bout roles m8")
+.Parameter("r", ParameterType.Required)
+.AddCheck((a,b,c) => { return isAcceptable(b); })
+.Do(async e =>
+    {
+        string bs = e.GetArg("r");
+        bool? right = null;
+        try
+        {
+            bool tryright;
+            bool.TryParse(bs,out tryright);
+            right = tryright;
+        } catch
+        {
+           await e.Channel.SendMessage("Sorry, but an error occured, made SURRRE you put true or false as a parameter :/");
+        }
+        if (right != null)
+        {
+            FindServSettings(e.Server).RoleUpdatesMessage = right ?? false;
+            
+            await e.Channel.SendMessage("success !");
+            await FindLogServer(e.Server).SendMessage(right ?? false ? "Role updates has been enabled" : "Role updates has been disabled");
+            SerializeServerSettingsAndSave();
+        }
+    });
 
 
+            #endregion
+            #region Rain-bow
+
+            _client.GetService<CommandService>().CreateCommand("rainbow")
+.Description("xdd")
+.Parameter("param1", ParameterType.Required)
+.Do(async e =>
+    {
+        string k = e.GetArg("param1");
+        var rol = e.Server.Roles.Where(r => r.Name.ToLower() == k.ToLower());
+        if (rol.Any())
+        {
+
+        }
+        await Task.Delay(1);
+    });
+
+
+            #endregion
         }
     }
 }
