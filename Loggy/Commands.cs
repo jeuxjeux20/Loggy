@@ -917,7 +917,8 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
         var rol = e.Server.Roles.Where(r => r.Name.ToLower() == k.ToLower());
         if (rol.Any())
         {
-
+            var kek = rol.First();
+           
         }
         await Task.Delay(1);
     });
