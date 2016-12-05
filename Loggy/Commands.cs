@@ -956,11 +956,49 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
 
             #endregion
 
-            #region MyRegion
+            #region xeronic
+            // aaaaa someone is invading my code, if you read this xeronic omg why why why why
+            /* followed with : 
+             WHY WHY WHY WHY WHY 
+             WHY WHY WHY WHY WHY 
+             WHY WHY WHY WHY WHY 
+             WHY WHY WHY WHY WHY 
+             ok stop*/
 
-            
-
+            Client.GetService<CommandService>().CreateCommand("xeronic")
+            .Description("aaaa `Find(out byYourself)`")
+            .Parameter("idc",ParameterType.Unparsed)
+            .Do(async e =>
+                {
+                    if (e.GetArg("idc").Trim().Length <= 0)
+                    {
+                        goto end;
+                    }
+                        
+                    string[] randomAdvices = 
+                    {
+                        "refactoring",
+                        "code format",
+                        "delegates",
+                        "style",
+                        "nothing because your code is perfect !",
+                        "exception handling"
+                    };
+                    string[] randomAdjectivesEnumerable = 
+                    {
+                        "a lot of","a bunch of","a little bit of","maybe needs some of","a grain of salt of"
+                    };
+                    await e.Server.CurrentUser.Edit(nickname: "xeronic");
+                    Random rand = new Random(DateTime.Now.Millisecond);
+                    await
+                        e.Channel.SendMessage(
+                            $"Your code needs {randomAdjectivesEnumerable[rand.Next(0, randomAdjectivesEnumerable.Length - 1)]} {randomAdvices[rand.Next(0, randomAdvices.Length - 1)]}");
+                    await e.Server.CurrentUser.Edit(nickname: "Loggy");
+                    end: // don't
+                    ; // use gotos
+                });
             #endregion
         }
     }
 }
+
