@@ -1,74 +1,64 @@
-﻿using Discord.Commands;
-using Discord;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.IO;
-using Microsoft.CSharp;
+﻿using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
-
-/// <summary>
-/// My nice bot Loggy !
-/// </summary>
-/// 
+using System.Threading.Tasks;
+using System.Xml.Serialization;
+using Discord;
+using Discord.Commands;
+using Microsoft.CSharp;
 
 namespace Loggy
 {
-    partial class Program
+    public partial class Program
     {
         private delegate Task<Message> SendM(string s);
         private bool IsJeuxjeux(User u)
         {
             return u.Id == 134348241700388864;
         }
-        internal Cooldown RegisterCooldown(int seconds, Command cm)
+
+        private Cooldown RegisterCooldown(int seconds, Command cm)
         {
-            if (!cool.Keys.Any((com => { return com.Equals(cm); })))
-                cool.Add(cm, new Cooldown(seconds));
-            return cool[cm];
+            if (!_cool.Keys.Any(com => com.Equals(cm)))
+                _cool.Add(cm, new Cooldown(seconds));
+            return _cool[cm];
 
         }
-
+        private readonly Cooldown _plsWaitCooldown = new Cooldown(2);
         [Serializable]
-        public class CommandSentByBotException : Exception
+        private class CommandSentByBotException : Exception
         {
             public CommandSentByBotException() { }
+/*
             public CommandSentByBotException(string message) : base(message) { }
+*/
+/*
             public CommandSentByBotException(string message, Exception inner) : base(message, inner) { }
+*/
             protected CommandSentByBotException(
-              System.Runtime.Serialization.SerializationInfo info,
-              System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+              SerializationInfo info,
+              StreamingContext context) : base(info, context) { }
         }
         private void DoCommands()
         {
             #region listserv
 
-            _client.GetService<CommandService>().CreateCommand("listServ")
+            Client.GetService<CommandService>().CreateCommand("listServ")
 .Description("Get the list of the servers in where is the bot. (:kek:)")
-.AddCheck((a, b, c) => { return b.Id == 134348241700388864; }, "u not jeuxjeux20")
+.AddCheck((a, b, c) => b.Id == 134348241700388864, "u not jeuxjeux20")
 .Do(async e =>
 {
     string m = "```";
-    foreach (var item in _client.Servers)
+    foreach (var item in Client.Servers)
     {
-        var linq = item.Users
-        .Where
-        ((u) =>
-        {
-            return u.Status == UserStatus.Online && !u.IsBot;
-        })
-        .Select((u) =>
-        {
-            return u.Name + "#" + u.Discriminator;
-        })
-        .ItinerateAndGet();
-
-        m += $"{item.Name} => users count : {item.UserCount} - online users {linq} {Environment.NewLine}";
-    }
-    m += "```";
+        m += $"{item.Name} - count : {item.UserCount} \n";
+       
+    } m += "```";
     await e.Channel.SendMessage(m);
 });
 
@@ -76,17 +66,16 @@ namespace Loggy
             #endregion
             #region clean
 
-            _client.GetService<CommandService>().CreateCommand("clean")
+            Client.GetService<CommandService>().CreateCommand("clean")
 .Description("Clean [number] messages")
-.AddCheck((a, b, c) => { return isAcceptable(b); })
-.Parameter("number", ParameterType.Required)
+.AddCheck((a, b, c) => IsAcceptable(b))
+.Parameter("number")
 .Do(async e =>
 {
     try
     {
-        Message[] toDel;
         int c = Math.Max(1, Convert.ToInt32(e.GetArg("number")));
-        toDel = await e.Channel.DownloadMessages(c);
+        var toDel = await e.Channel.DownloadMessages(c);
         await e.Channel.DeleteMessages(toDel);
         await e.Channel.SendMessage("Succesfully deleted " + c + " messages !");
     }
@@ -97,22 +86,19 @@ namespace Loggy
 });
             #endregion
             #region wizOnDrugs
-            _client.GetService<CommandService>().CreateCommand("wizondrug")
+            Client.GetService<CommandService>().CreateCommand("wizondrug")
                 .Description("get kek and pizzas")
-                .Alias(new string[] { "drugs", "electronicdrugs", "wizdrug" })
-                .AddCheck((a, b, c) =>
-                {
-                    return RegisterCooldown(50, a).isFinished;
-                })
+                .Alias("drugs", "electronicdrugs", "wizdrug")
+                .AddCheck((a, b, c) => RegisterCooldown(50, a).IsFinished)
 
                 .Do(async e =>
                 {
-                    cool[e.Command].Restart();
+                    _cool[e.Command].Restart();
                     Random kek = new Random(DateTime.UtcNow.Millisecond);
                     List<Message> ls = new List<Message>();
                     for (int i = 0; i < new Random().Next(6, 10); i++)
                     {
-                        ls.Add(await e.Channel.SendMessage(drugs[kek.Next(0, drugs.Length)]));
+                        ls.Add(await e.Channel.SendMessage(_drugs[kek.Next(0, _drugs.Length)]));
                         await Task.Delay(600);
                     }
                     foreach (var item in ls)
@@ -123,7 +109,7 @@ namespace Loggy
             #endregion // cooldowned
             #region MDMCK10
 
-            _client.GetService<CommandService>().CreateCommand("MDMCK10")
+            Client.GetService<CommandService>().CreateCommand("MDMCK10")
         .Description("MDMCK10 has something to confess")
         .Do(async e =>
         {
@@ -136,24 +122,26 @@ namespace Loggy
             #endregion
             #region kek
 
-            _client.GetService<CommandService>().CreateCommand("keks")
+            Client.GetService<CommandService>().CreateCommand("keks")
 .Description("get kek and pizzas")
 .AddCheck((a, b, c) =>
 {
-    if (!cool.Keys.Any((com => { return com == a; })))
-        cool.Add(a, new Cooldown(15));
-    return cool[a].isFinished;
+    if (_cool.Keys.All(com => com != a))
+        _cool.Add(a, new Cooldown(15));
+    return _cool[a].IsFinished;
 }, "plz wait a little bit")
 .Do(async e =>
 {
-    cool[e.Command].Restart();
-    List<Message> x = new List<Message>();
-    x.Add(await e.Channel.SendMessage("cake"));
-    x.Add(await e.Channel.SendMessage("cake"));
-    x.Add(await e.Channel.SendMessage("cake"));
-    x.Add(await e.Channel.SendMessage("cake"));
-    x.Add(await e.Channel.SendMessage("cake"));
-    x.Add(await e.Channel.SendMessage("cake"));
+    _cool[e.Command].Restart();
+    List<Message> x = new List<Message>
+    {
+        await e.Channel.SendMessage("cake"),
+        await e.Channel.SendMessage("cake"),
+        await e.Channel.SendMessage("cake"),
+        await e.Channel.SendMessage("cake"),
+        await e.Channel.SendMessage("cake"),
+        await e.Channel.SendMessage("cake")
+    };
     await Task.Delay(3000);
     foreach (var item in x)
     {
@@ -178,20 +166,20 @@ namespace Loggy
 
             #endregion
             #region It's julia lol
-            _client.GetService<CommandService>().CreateCommand("joolya7")
+            Client.GetService<CommandService>().CreateCommand("joolya7")
 .Description("find out xd")
 .Parameter("hi", ParameterType.Unparsed)
 .AddCheck((a, b, c) =>
 {
-    if (!cool.Keys.Any(com => { return com == a; }))
-        cool.Add(a, new Cooldown(7));
-    return cool[a].isFinished;
+    if (_cool.Keys.All(com => com != a))
+        _cool.Add(a, new Cooldown(7));
+    return _cool[a].IsFinished;
 }, "plz wait a little bit")
 .Do(async e =>
 {
-    cool[e.Command].Restart();
+    _cool[e.Command].Restart();
     string mes = "Windows 7";
-    foreach (var item in drugs)
+    foreach (var item in _drugs)
     {
         if (e.GetArg("hi").Equals(item))
         {
@@ -212,7 +200,7 @@ namespace Loggy
 });
             #endregion
             #region dogetip
-            _client.GetService<CommandService>().CreateCommand("tipmedoge")
+            Client.GetService<CommandService>().CreateCommand("tipmedoge")
                 .Description("try it out")
                 .Do(async e =>
                 {
@@ -220,16 +208,16 @@ namespace Loggy
                 });
             #endregion           
             #region textemoji
-            _client.GetService<CommandService>().CreateCommand("textToEmoji")
+            Client.GetService<CommandService>().CreateCommand("textToEmoji")
    .Description("grab a text, get an emoji kekekekekekekek")
-   .Alias(new string[] { "emojiText", "textEmoji", "et", "kekwords", "say" })
+   .Alias("emojiText", "textEmoji", "et", "kekwords", "say")
    .Parameter("param1", ParameterType.Unparsed)
    .Do(async e =>
    {
        Channel chtosend;
        if ((e.Server.Id == 110373943822540800 && e.Channel.Name == "general"))
        {
-           chtosend = e.Server.AllChannels.Where(w => w.Name == @"testing-[\]").First();
+           chtosend = e.Server.AllChannels.First(w => w.Name == @"testing-[\]");
            await Console.Out.WriteLineAsync("found k");
        } else
        {
@@ -242,7 +230,7 @@ namespace Loggy
    });
             #endregion // this one everyone loves it idk why
             #region etiTopkek
-            _client.GetService<CommandService>().CreateCommand("topkek")
+            Client.GetService<CommandService>().CreateCommand("topkek")
 .Description("kekeek")
 .Do(async e =>
 {
@@ -250,7 +238,7 @@ namespace Loggy
 });
             #endregion 
             #region drinkBleach
-            _client.GetService<CommandService>().CreateCommand("bleach")
+            Client.GetService<CommandService>().CreateCommand("bleach")
 .Description("drink it = +69 attack")
 .Do(async e =>
 {
@@ -258,7 +246,7 @@ namespace Loggy
 });
             #endregion
             #region wiz
-            _client.GetService<CommandService>().CreateCommand("wiz")
+            Client.GetService<CommandService>().CreateCommand("wiz")
 .Description("wiz.z.z.z")
 .Do(async e =>
 {
@@ -280,15 +268,15 @@ namespace Loggy
 });
             #endregion
             #region loglist
-            _client.GetService<CommandService>().CreateCommand("logList")
+            Client.GetService<CommandService>().CreateCommand("logList")
                 .Description("Make a list of all loggers")
-                .AddCheck((a, b, c) => { return isAcceptable(b); }, "You must get a role that contains Logger or Admin in its name.")
-                .Alias(new string[] { "recordList", "listLog", "listRecord" })
+                .AddCheck((a, b, c) => IsAcceptable(b), "You must get a role that contains Logger or Admin in its name.")
+                .Alias("recordList", "listLog", "listRecord")
                 .Do(async e =>
                 {
                     bool nothing = true;
                     string message = $"List of records for the server: {e.Server.Name}";
-                    foreach (var item in toRecord)
+                    foreach (var item in _toRecord)
                     {
                         if (item.Key.Server == e.Server)
                         {
@@ -307,11 +295,11 @@ namespace Loggy
                 });
             #endregion           
             #region delete
-            _client.GetService<CommandService>().CreateCommand("delete")
+            Client.GetService<CommandService>().CreateCommand("delete")
 .Description("Delete a record")
-.Parameter("a", ParameterType.Required)
-.Parameter("b", ParameterType.Required)
-.AddCheck((a, b, c) => { return isAcceptable(b); }, "You must get a role that contains Logger or Admin in its name.")
+.Parameter("a")
+.Parameter("b")
+.AddCheck((a, b, c) => IsAcceptable(b), "You must get a role that contains Logger or Admin in its name.")
 .Do(async e =>
 {
     string a = e.GetArg("a");
@@ -340,11 +328,11 @@ namespace Loggy
     }
     if (foundie.First && foundie.Second)
     {
-        foreach (var item in toRecord.ToList())
+        foreach (var item in _toRecord.ToList())
         {
             if (item.Key == toRecordTemp.First && item.Value == toRecordTemp.Second)
             {
-                toRecord.Remove(item.Key);
+                _toRecord.Remove(item.Key);
             }
         }
         await e.Channel.SendMessage($"Sucessfully deleted record ! ({toRecordTemp.First} ---> {toRecordTemp.Second})");
@@ -352,19 +340,23 @@ namespace Loggy
 });
             #endregion           
             #region disconnect
-            _client.GetService<CommandService>().CreateCommand("disconnect")
+            Client.GetService<CommandService>().CreateCommand("disconnect")
                         .Description("Disconnects the bot, what else")
-                        .AddCheck((a, b, c) => { if (b.Name == "jeuxjeux20" && b.Discriminator == 4664) { return true; } else { return false; } }, "Only jeuxjeux20 can disconnect it")
+                        .AddCheck((a, b, c) =>
+                {
+                    if (b.Name == "jeuxjeux20" && b.Discriminator == 4664) { return true; }
+                    return false;
+                }, "Only jeuxjeux20 can disconnect it")
                         .Do(async e =>
                         {
                             await e.Channel.SendMessage("Bye :frowning:");
                             await Task.Delay(1000);
-                            await _client.Disconnect();
-                            _client.Dispose();
+                            await Client.Disconnect();
+                            Client.Dispose();
                         });
             #endregion           
             #region invite
-            _client.GetService<CommandService>().CreateCommand("invite")
+            Client.GetService<CommandService>().CreateCommand("invite")
 .Description("Get an invite link kek")
 .Do(async e =>
 {
@@ -373,27 +365,27 @@ namespace Loggy
             #endregion
             #region about
 
-            _client.GetService<CommandService>().CreateCommand("about")
+            Client.GetService<CommandService>().CreateCommand("about")
         .Description("About the dev c:")
-        .Alias(new string[] { "topkekkle" })
+        .Alias("topkekkle")
         .Do(async e =>
         {
             await e.Channel.SendMessage
             (
 $@"```This bot has been made by jeuxjeux20,
 it's a funny bot with tons of functions !
-it is currently on {_client.Servers.Count()} server(s)
+it is currently on {Client.Servers.Count()} server(s)
 I hope that you like it c:```");
         });
 
             #endregion
             #region record
 
-            _client.GetService<CommandService>().CreateCommand("record")
+            Client.GetService<CommandService>().CreateCommand("record")
             .Description("record a channel")
-            .Parameter("a", ParameterType.Required)
-            .Parameter("b", ParameterType.Required)
-            .AddCheck((a, b, c) => { return isAcceptable(b); }, "You must get a role that contains Logger or Admin in its name.")
+            .Parameter("a")
+            .Parameter("b")
+            .AddCheck((a, b, c) => IsAcceptable(b), "You must get a role that contains Logger or Admin in its name.")
             .Do(async e =>
             {
                 string a = e.GetArg("a");
@@ -420,30 +412,30 @@ I hope that you like it c:```");
                         toRecordTemp.Second = item;
                     }
                 }
-                if (foundie.First == false || foundie.Second == false && isAcceptable(e))
+                if (foundie.First == false || foundie.Second == false && IsAcceptable(e))
                 {
                     await e.Channel.SendMessage($"Something didn't got right - Listening : {foundie.First} ; Target : {foundie.Second}");
                 }
-                else if (safeTo(toRecord, toRecordTemp))
+                else if (SafeTo(_toRecord, toRecordTemp))
                 {
                     await e.Channel.SendMessage($"~~Succesfully installed Windows 10~~ Succesfully recording #{a} to output #{b}");
                     bool cool = true;
-                    foreach (var item in toRecord.ToList())
+                    foreach (var item in _toRecord.ToList())
                     {
                         if (item.Key == toRecordTemp.First)
                         {
                             await e.Channel.SendMessage("A record is alerady targeting this channel, replacing...");
                             cool = false;
-                            toRecord[item.Key] = toRecordTemp.Second;
+                            _toRecord[item.Key] = toRecordTemp.Second;
                             break;
                         }
 
                     }
                     if (cool)
-                        toRecord.Add(toRecordTemp.First, toRecordTemp.Second);
+                        _toRecord.Add(toRecordTemp.First, toRecordTemp.Second);
                 }
 
-                else if (!safeTo(toRecord, toRecordTemp))
+                else if (!SafeTo(_toRecord, toRecordTemp))
                 {
                     await e.Channel.SendMessage(":negative_squared_cross_mark: you can't make a record loop seriously m8");
                 }
@@ -453,14 +445,14 @@ I hope that you like it c:```");
             #endregion
             #region broadcast
 
-            _client.GetService<CommandService>().CreateCommand("broadcast")
+            Client.GetService<CommandService>().CreateCommand("broadcast")
 .Description("Only for jeuxjeux20, broadcast a message to all servers. this gonna be fun")
 .Parameter("say", ParameterType.Unparsed)
-.AddCheck((a, b, c) => { return IsJeuxjeux(b); }, "u not jeuxjeux20")
+.AddCheck((a, b, c) => IsJeuxjeux(b), "u not jeuxjeux20")
 
 .Do(async e =>
 {
-    foreach (var item in _client.Servers)
+    foreach (var item in Client.Servers)
     {
         await item.DefaultChannel.SendMessage(e.GetArg("say"));
     }
@@ -470,18 +462,18 @@ I hope that you like it c:```");
             #endregion
             #region SPAM HI
 
-            _client.GetService<CommandService>().CreateCommand("hiSpam")
+            Client.GetService<CommandService>().CreateCommand("hiSpam")
 .Description("hi hi hi hi hi hi hi hi hi")
 .AddCheck((a, b, c) =>
 {
-    if (!cool.Keys.Any((com => { return com == a; })))
-        cool.Add(a, new Cooldown(35));
-    return cool[a].isFinished;
+    if (_cool.Keys.All(com => com != a))
+        _cool.Add(a, new Cooldown(35));
+    return _cool[a].IsFinished;
 
 })
 .Do(async e =>
     {
-        cool[e.Command].Restart();
+        _cool[e.Command].Restart();
         HashSet<Message> h = new HashSet<Message>();
         for (int i = 0; i < 20; i++)
         {
@@ -498,26 +490,26 @@ I hope that you like it c:```");
             #endregion
             #region LogChannel
 
-            _client.GetService<CommandService>().CreateCommand("defaultchannel")
+            Client.GetService<CommandService>().CreateCommand("defaultchannel")
 .Description("Set the default channel.")
-.Parameter("ch", ParameterType.Required)
-.AddCheck((a, b, c) => { return isAcceptable(b); })
+.Parameter("ch")
+.AddCheck((a, b, c) => IsAcceptable(b))
 .Do(async e =>
     {
         string chanName = e.GetArg("ch");
-        bool isHere = e.Server.AllChannels.Select(ok => { return ok.Mention; }).Contains(chanName);
+        bool isHere = e.Server.AllChannels.Select(ok => ok.Mention).Contains(chanName);
         if (isHere)
         {
-            Channel hello = e.Server.AllChannels.Where(c => c.Mention == chanName).First();
+            Channel hello = e.Server.AllChannels.First(c => c.Mention == chanName);
             if (SettingsList.Any(s => s.Id == e.Server.Id))
-                SettingsList.Where(s => s.Id == e.Server.Id).First().ChannelIdToLog = hello.Id;
+                SettingsList.First(s => s.Id == e.Server.Id).ChannelIdToLog = hello.Id;
             else
                 SettingsList.Add(new ServerSettings(e.Server.Id, hello.Id));
             await e.Channel.SendMessage("ok alright");
             await FindLogServer(e.Server).SendMessage("Future log messages will be sent here");
             using (StreamWriter sw = new StreamWriter("settings.xml", false))
             {
-                var ser = new System.Xml.Serialization.XmlSerializer(typeof(ServerSettings[]));
+                var ser = new XmlSerializer(typeof(ServerSettings[]));
                 ser.Serialize(sw.BaseStream, SerializableSettingsList);
             }
         }
@@ -530,14 +522,10 @@ I hope that you like it c:```");
 
             #endregion
             #region Eval
-            _client.GetService<CommandService>().CreateCommand("eval")
+            Client.GetService<CommandService>().CreateCommand("eval")
 .Description("Evals a c# code executed apart and compiled, protected from rds xd and use output = [the variable] to output ; for defining classes : put [CD] at the end of the code; then type your class ;)")
 .Parameter("to", ParameterType.Unparsed)
-.AddCheck((a, b, c) =>
-{
-
-    return /* RegisterCooldown(5, a).isFinished || TrustedEvalList.Contains(b.Id); */ true;
-})
+.AddCheck((a, b, c) => true) /* RegisterCooldown(5, a).isFinished || TrustedEvalList.Contains(b.Id); */
 .Do(async e =>
     {
         string codeToEval = e.GetArg("to");
@@ -554,14 +542,14 @@ I hope that you like it c:```");
         codeToEval = codeToEval.Replace("while", "disabled");
         codeToEval = codeToEval.Replace("for", "disabled");
         string cl = string.Empty;
-        var Regex = new System.Text.RegularExpressions.Regex("\\[CD\\].*$", System.Text.RegularExpressions.RegexOptions.Singleline);
+        var regex = new Regex("\\[CD\\].*$", RegexOptions.Singleline);
         if (codeToEval.Contains("[CD]"))
         {
             await e.Channel.SendMessage("CLASS DEFINITION FOUND");
         }
-        if (Regex.IsMatch(codeToEval))
+        if (regex.IsMatch(codeToEval))
         {
-            string val = Regex.Match(codeToEval).Value;
+            string val = regex.Match(codeToEval).Value;
             codeToEval = codeToEval.Replace(val, "");
             cl = val.Replace("[CD]", string.Empty);
         }
@@ -592,19 +580,15 @@ return output; }"
             CompilerOptions = "/optimize"
         };
         compilerParams.ReferencedAssemblies.Add("System.Core.dll");
-        _client.SetStatus(UserStatus.DoNotDisturb);
-        CompilerResults results = null;
-        var myTask = Task.Factory.StartNew(() =>
-        {
-            return provider.CompileAssemblyFromSource(compilerParams, classedCode);
-        });    
-            results = await myTask;
+        Client.SetStatus(UserStatus.DoNotDisturb);
+        var myTask = Task.Factory.StartNew(() => provider.CompileAssemblyFromSource(compilerParams, classedCode));    
+            var results = await myTask;
         //catch (Exception ex)
         //{
         //    await e.Channel.SendMessage($"Exception occured : {ex.Message}");
         //    goto oh;
         //}
-        _client.SetStatus(UserStatus.Online);
+        Client.SetStatus(UserStatus.Online);
         if (results.Errors.Count > 0)
         {
             string ono = string.Empty;
@@ -617,37 +601,37 @@ return output; }"
         }
         else
         {
-            object o = results.CompiledAssembly.CreateInstance("Eval.Evalued");
-            MethodInfo mi = o.GetType().GetMethod("EvalIt");
-            object res = "no u wut";
-            res = mi.Invoke(o, null);
+            var o = results.CompiledAssembly.CreateInstance("Eval.Evalued");
+            var mi = o?.GetType().GetMethod("EvalIt");
+            var res = mi?.Invoke(o, null);
             await e.Channel.SendMessage($@"Success !
 ```Output : {res ?? "null"}```");
         }
        
-        _client.SetStatus(UserStatus.Online);
-        ;
+        Client.SetStatus(UserStatus.Online);
+        
     });
 #pragma warning restore CS1998 // Cette méthode async n'a pas d'opérateur 'await' et elle s'exécutera de façon synchrone
             #endregion
             #region Trust
 
-            _client.GetService<CommandService>().CreateCommand("evaltrust")
+            Client.GetService<CommandService>().CreateCommand("evaltrust")
 .Description("Only for jeuxjeux20")
-.Parameter("us", ParameterType.Required)
-.AddCheck((a, b, c) => { return IsJeuxjeux(b); })
+.Parameter("us")
+.AddCheck((a, b, c) => IsJeuxjeux(b))
 .Do(async e =>
     {
-        string user = e.GetArg("us");
+        var user = e.GetArg("us");
         var trustedOne = e.Server.Users.Where(u => u.NicknameMention == user || u.Mention == user);
-        User toTrust = trustedOne.Any() ? trustedOne.First() : null;
+        var enumerable = trustedOne as IList<User> ?? trustedOne.ToList();
+        User toTrust = enumerable.Any() ? enumerable.First() : null;
         if (toTrust != null)
         {
             TrustedEvalList.Add(toTrust.Id);
             await e.Channel.SendMessage("Done ! :)");
             using (StreamWriter sw = new StreamWriter("trusted.xml", false))
             {
-                new System.Xml.Serialization.XmlSerializer(typeof(ulong[])).Serialize(sw, SerializableTrustedEvalList);
+                new XmlSerializer(typeof(ulong[])).Serialize(sw, SerializableTrustedEvalList);
             }
         }
         else
@@ -659,22 +643,23 @@ return output; }"
 
             #endregion
             #region UNTRUST
-            _client.GetService<CommandService>().CreateCommand("untrust")
+            Client.GetService<CommandService>().CreateCommand("untrust")
 .Description("Only for jeuxjeux20")
-.Parameter("us", ParameterType.Required)
-.AddCheck((a, b, c) => { return IsJeuxjeux(b); })
+.Parameter("us")
+.AddCheck((a, b, c) => IsJeuxjeux(b))
 .Do(async e =>
 {
     string user = e.GetArg("us");
     var trustedOne = e.Server.Users.Where(u => u.NicknameMention == user || u.Mention == user);
-    User toTrust = trustedOne.Any() ? trustedOne.First() : null;
+    var enumerable = trustedOne as IList<User> ?? trustedOne.ToList();
+    User toTrust = enumerable.Any() ? enumerable.First() : null;
     if (toTrust != null)
     {
         TrustedEvalList.Remove(toTrust.Id);
         await e.Channel.SendMessage("Done ! :)");
         using (StreamWriter sw = new StreamWriter("trusted.xml", false))
         {
-            new System.Xml.Serialization.XmlSerializer(typeof(ulong[])).Serialize(sw, SerializableTrustedEvalList);
+            new XmlSerializer(typeof(ulong[])).Serialize(sw, SerializableTrustedEvalList);
         }
     }
     else
@@ -686,7 +671,7 @@ return output; }"
             #endregion
             #region FireC
 
-            _client.GetService<CommandService>().CreateCommand("FireC")
+            Client.GetService<CommandService>().CreateCommand("FireC")
 .Description("xd")
 .Parameter("nvm", ParameterType.Unparsed)
 .Do(async e =>
@@ -698,7 +683,7 @@ return output; }"
         uint kek = 1;
         while (kek <= 100)
         {
-            await x.Edit("Parsing and deserializing FireC, this may take a while" + Environment.NewLine + ASCIIBar.DrawProgressBar(kek) + $" - {kek}%");
+            await x.Edit("Parsing and deserializing FireC, this may take a while" + Environment.NewLine + AsciiBar.DrawProgressBar(kek) + $" - {kek}%");
             kek += (uint)new Random(DateTime.Now.Millisecond).Next(1, 15);
             await Task.Delay(250);
         }
@@ -707,7 +692,7 @@ return output; }"
 
             #endregion
             #region cth
-            _client.GetService<CommandService>().CreateCommand("cth")
+            Client.GetService<CommandService>().CreateCommand("cth")
 .Description("allé marin le panné")
 .Do(async e =>
     {
@@ -734,13 +719,13 @@ return output; }"
             #endregion
             #region cartkiwi
 
-            _client.GetService<CommandService>().CreateCommand("cartkiwi")
+            Client.GetService<CommandService>().CreateCommand("cartkiwi")
     .Description("Description")
-    .AddCheck((a,b,c) => { return RegisterCooldown(240, a).isFinished && c.Server.Id == 249545918821433354; })
+    .AddCheck((a,b,c) => RegisterCooldown(240, a).IsFinished && c.Server.Id == 249545918821433354)
     .Do(async e =>
         {
-            cool[e.Command].Restart();
-            string salut = @"Kiwiii !
+            _cool[e.Command].Restart();
+            const string salut = @"Kiwiii !
 Avec la carte Kiwi, tu payes moitié prix.
 Et ton papa aussi.
 Et ta maman aussi.
@@ -768,18 +753,17 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
             #endregion
             #region Darkphoenix
 
-            _client.GetService<CommandService>().CreateCommand("darkpheonix")
+            Client.GetService<CommandService>().CreateCommand("darkpheonix")
 .Description("Darkekphoenix")
-.AddCheck((a, b, c) => { return RegisterCooldown(15, a).isFinished; })
+.AddCheck((a, b, c) => RegisterCooldown(15, a).IsFinished)
 .Do(async e =>
     {
         SendM send = e.Channel.SendMessage;
         Random r = new Random(DateTime.Now.Millisecond);
         string s = "Coincidence scan running...";
         var x = await send(s);
-        string scan = "Coincidences found : 1";
         int num = 0;
-        List<string> Wiruses = new List<string>
+        List<string> wiruses = new List<string>
         {
             "Coincidence.Android.Nexus7",
             "Coincidence.Samsung.ace",
@@ -801,9 +785,9 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
             num += temp;
             for (int io = 0; io < temp; io++)
             {
-                wirus += $"`{Wiruses.ElementAt(r.Next(0, Wiruses.Count - 1))}`" + Environment.NewLine;
+                wirus += $"`{wiruses.ElementAt(r.Next(0, wiruses.Count - 1))}`" + Environment.NewLine;
             }
-            scan = "Coincidences found : " + num;
+            var scan = "Coincidences found : " + num;
             await x.Edit($"{s} {Environment.NewLine} {wirus} {scan}");
             await Task.Delay(750 + r.Next(100, 1000));
         }
@@ -814,52 +798,56 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
             #endregion
             #region GetInvite
 
-            _client.GetService<CommandService>().CreateCommand("grabinvite")
+            Client.GetService<CommandService>().CreateCommand("grabinvite")
 .Description("GRAB GRAB GRAB THAT INVITE :3333")
 .Parameter("grab", ParameterType.Unparsed)
+.AddCheck((a,b,c) => RegisterCooldown(10, a).IsFinished)
 .Do(async e =>
     {
-        SendM Send = e.Channel.SendMessage;
+        _cool[e.Command].Restart();
+        SendM send = e.Channel.SendMessage;
         if (e.User.Id == 244509121838186497)
         {
-            await Send("Grabbing that pussy...");
+            await send("Grabbing that pussy...");
         }
         else
-            await Send("Grabbing...");
+            await send("Grabbing...");
         string grabgrabgrabthatshit = e.GetArg("grab").ToLower();
-        var servs = _client.Servers.Where(s => s.Name.ToLower().Contains(grabgrabgrabthatshit));
-        if (servs.Any())
+        var servs = Client.Servers.Where(s => s.Name.ToLower().Contains(grabgrabgrabthatshit));
+        var enumerable = servs as IList<Server> ?? servs.ToList();
+        if (enumerable.Any())
         {
             try
             {
-                var invit = (await servs.First().GetInvites()).Where(inv => !inv.IsRevoked);
-                var inviturl = invit.First().Url.Remove(18, 1);
-                if (invit.Any())
-                    await Send($"Returning the first one : {Environment.NewLine} {inviturl}");
+                var invit = (await enumerable.First().GetInvites()).Where(inv => !inv.IsRevoked);
+                var invites = invit as IList<Invite> ?? invit.ToList();
+                var inviturl = invites.First().Url.Remove(18, 1);
+                if (invites.Any())
+                    await send($"Returning the first one : {Environment.NewLine} {inviturl}");
                 else
-                    await Send("No Invites found");
+                    await send("No Invites found");
             }
             catch
             {
-                await Send(":warning: the bot failed to get the invite.");
+                await send(":warning: the bot failed to get the invite.");
             }
         }
         else
         {
-            await Send("The server couldn't be found :(");
+            await send("The server couldn't be found :(");
         }
     });
 
 
             #endregion
             #region spam spam
- _client.GetService<CommandService>().CreateCommand("spam")
+ Client.GetService<CommandService>().CreateCommand("spam")
 .Description("spamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspamspam")
 .Parameter("spammy", ParameterType.Unparsed)
-.AddCheck((a,b,c) => { return RegisterCooldown(20, a).isFinished; })
+.AddCheck((a,b,c) => RegisterCooldown(20, a).IsFinished)
 .Do(async e =>
     {
-        cool[e.Command].Restart();
+        _cool[e.Command].Restart();
         string spummmy = e.GetArg("spammy");
         HashSet<Message> m = new HashSet<Message>();
         for (int i = 0; i < 6; i++)
@@ -877,10 +865,10 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
             #endregion
             #region Role
 
-            _client.GetService<CommandService>().CreateCommand("roleUpdates")
+            Client.GetService<CommandService>().CreateCommand("roleUpdates")
 .Description("Select if you wanna get updates bout roles m8")
-.Parameter("r", ParameterType.Required)
-.AddCheck((a,b,c) => { return isAcceptable(b); })
+.Parameter("r")
+.AddCheck((a,b,c) => IsAcceptable(b))
 .Do(async e =>
     {
         string bs = e.GetArg("r");
@@ -908,26 +896,69 @@ Un enfant, une carte Kiwi et on voyage à moitié prix.";
             #endregion
             #region Rain-bow
 
-            _client.GetService<CommandService>().CreateCommand("rainbow")
+            Client.GetService<CommandService>().CreateCommand("rainbow")
 .Description("xdd")
-.Parameter("param1", ParameterType.Required)
+.Parameter("param1", ParameterType.Unparsed)
 .Do(async e =>
     {
         string k = e.GetArg("param1");
         var rol = e.Server.Roles.Where(r => r.Name.ToLower() == k.ToLower());
-        if (rol.Any())
+        var roles = rol as IList<Role> ?? rol.ToList();
+        if (roles.Any())
         {
-            var kek = rol.First();
+            var kek = roles.First();
             var thingy = typeof(Color);
             List<Color> toColor = new List<Color>();
-            foreach (FieldInfo item in thingy.GetFields())
+            List<Color> awfulColors = new List<Color>
             {
-                toColor.Add(item.GetValue(new object()) as Color);
+                Color.DarkBlue,
+                Color.DarkerGrey,
+                Color.DarkGold,
+                Color.DarkGreen,
+                Color.DarkGrey,
+                Color.DarkMagenta,
+                Color.DarkOrange,
+                Color.DarkPurple,
+                Color.DarkRed,
+                Color.DarkTeal,
+                Color.Default,
+                Color.LighterGrey,
+                Color.LightGrey,
+                Color.Teal              
+            };
+            foreach (FieldInfo item in thingy.GetFields())
+            {                
+                    if (!awfulColors.Contains(item.GetValue(new object())))
+                    try
+                    {
+                        toColor.Add(item.GetValue(new object()) as Color);
+                    }
+                    catch
+                    {
+                        // i ignore you m8
+                    }
             }
+            for (int i = 0; i < 10; i++)
+            {
+                foreach (var item in toColor)
+                {
+                    await kek.Edit(null, null, item);
+                }
+                await Task.Delay(125);
+            }
+        } else
+        {
+            await e.Channel.SendMessage("nut fund");
         }
         await Task.Delay(1);
     });
 
+
+            #endregion
+
+            #region MyRegion
+
+            
 
             #endregion
         }

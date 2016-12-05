@@ -1,115 +1,93 @@
-﻿using Discord;
-using Discord.Commands;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
-using System.Collections;
-using System.Xml.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Xml.Serialization;
+using Discord;
+using Discord.Commands;
 using static System.Console;
+
 namespace Loggy
 {
     [Serializable]
     public partial class Program
     {
-        List<Pair<Message, ulong>> rolesChanges = new List<Pair<Message, ulong>>();
-        string[] drugs = new string[] { "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm", "Windows 7", "silent rd", "gruel", "memz", "bye" };
-        static string isRequired(string s) => s.EndsWith("}") ? "" : "}";
-        static void Main(string[] args) => new Program().Start(args);
-
-
-        Dictionary<Channel, Channel> toRecord = new Dictionary<Channel, Channel>();
-
-        #region Accept
-        private bool isAcceptable(CommandEventArgs e)
+        public enum TextEmojiOptions
         {
-            bool acc = false;
-            foreach (var role in e.User.Roles)
-            {
-                if (role.Name.ToLower().Contains("logger") || role.Name.ToLower().Contains("Admin") || IsJeuxjeux(e.User))
-                {
-                    acc = true;
-                    break;
-                }
-            }
-            return acc;
+            Lowercase,
+            NoOptions
         }
-        private bool isAcceptable(User e)
+
+        private readonly string[] _drugs =
         {
-            bool acc = false;
-            foreach (var role in e.Roles)
-            {
-                if (role.Name.ToLower().Contains("logger") || role.Name.ToLower().Contains("Admin") || IsJeuxjeux(e))
-                {
-                    acc = true;
-                    break;
-                }
-            }
-            return acc;
-        }
-        #endregion
-        DateTime lastJoolya = DateTime.UtcNow;
-        Dictionary<Command, Cooldown> cool = new Dictionary<Command, Cooldown>();
+            "cake", "Windows 10", "Windows 9", "silent rd", "joolya", "rip", "rip vm",
+            "Windows 7", "silent rd", "gruel", "memz", "bye"
+        };
+
+
+        private readonly Dictionary<Channel, Channel> _toRecord = new Dictionary<Channel, Channel>();
+        protected DiscordClient Client;
+        private List<Pair<Message, ulong>> _rolesChanges = new List<Pair<Message, ulong>>();
+        private readonly Dictionary<Command, Cooldown> _cool = new Dictionary<Command, Cooldown>();
 
         private List<ulong> TrustedEvalList { get; set; } = new List<ulong>();
+
         private ulong[] SerializableTrustedEvalList
         {
             get { return TrustedEvalList.ToArray(); }
             set { TrustedEvalList = value.ToList(); }
         }
+
         private List<ServerSettings> SettingsList { get; set; } = new List<ServerSettings>();
+
         public ServerSettings[] SerializableSettingsList
         {
             get { return SettingsList.ToArray(); }
             set { SettingsList = value.ToList(); }
         }
 
+        private static void Main(string[] args) => new Program().Start(args);
+
         public Channel FindLogServer(Server s)
         {
             try
             {
-                var found = SettingsList.Where(se => { return se.Id == s.Id; });
-                if (found.Any())
-                {
-                    return s.AllChannels.Where(c => found.First().ChannelIdToLog == c.Id).First();
-                }
-                else { return s.DefaultChannel; }
+                var found = SettingsList.Where(se => se.Id == s.Id);
+                var serverSettings = found as IList<ServerSettings> ?? found.ToList();
+                if (serverSettings.Any())
+                    return s.AllChannels.First(c => serverSettings.First().ChannelIdToLog == c.Id);
+                return s.DefaultChannel;
             }
             catch
             {
                 return s.DefaultChannel;
             }
-            
         }
+
         private ServerSettings FindServSettings(Server ser)
         {
             if (SettingsList.Any(s => s.Id == ser.Id))
-            {
-                Out.WriteLineAsync("ohoh");
-                return SettingsList.Where(s => s.Id.Equals(ser.Id)).First();
-            }
-            else
-            {
-                var a = new ServerSettings(ser.Id); SettingsList.Add(a);
-                return a;
-            }
-
+                return SettingsList.First(s => s.Id.Equals(ser.Id));
+            var a = new ServerSettings(ser.Id);
+            SettingsList.Add(a);
+            return a;
         }
+
+/*
         private void Repeat(byte n, Action act)
         {
             for (byte i = 0; i > n; i--)
-            {
                 act();
-            }
         }
-        private async Task ok(object lol, CommandErrorEventArgs err)
+*/
+
+        private async Task Ok(CommandErrorEventArgs err)
         {
             if (err.ErrorType == CommandErrorType.BadPermissions)
-            {
-                if (err.Command.Text == "broadcast" || err.Command.Text == "disconnect" || err.Command.Text == "listserv" || err.Command.Text == "evaltrust")
+                if ((err.Command.Text == "broadcast") || (err.Command.Text == "disconnect") ||
+                    (err.Command.Text == "listserv") || (err.Command.Text == "evaltrust"))
                 {
                     await err.Channel.SendMessage("**__No__**, only jeuxjeux20 can use this command");
                 }
@@ -117,21 +95,22 @@ namespace Loggy
                 {
                     await err.Channel.SendMessage("You aren't allowed to eval.");
                 }
-                else if (cool.Keys.Any((c => { return c == err.Command; })))
+                else if (_cool.Keys.Any(c => c == err.Command))
                 {
-                    await err.Channel.SendMessage($"Please wait {cool[err.Command].secondsLeft} seconds. ty");
+                    if (!_plsWaitCooldown.IsFinished)
+                        await Task.Delay((_plsWaitCooldown.SecondsLeft ?? 1) + new Random().Next(1, 5));
+                    await err.Channel.SendMessage($"Please wait {_cool[err.Command].SecondsLeft} seconds. ty");
+                    _plsWaitCooldown.Restart();
                 }
                 else
                 {
-                    await err.Channel.SendMessage($":red_circle: => You didn't have got permissions to use this command (try attributting yourself a role named \"Logger\")`");
+                    await
+                        err.Channel.SendMessage(
+                            ":red_circle: => You didn\'t have got permissions to use this command (try attributting yourself a role named \"Logger\")`");
                 }
-            }
             else if (err.ErrorType == CommandErrorType.BadArgCount)
-            {
-                await err.Channel.SendMessage($"Argument error. Please check what arguments you typed in.");
-            }
+                await err.Channel.SendMessage("Argument error. Please check what arguments you typed in.");
             else if (err.ErrorType == CommandErrorType.Exception)
-            {
                 if (err.Exception.Message.Contains("2000"))
                 {
                     await err.Channel.SendMessage("Too much **chara**cters, m8");
@@ -149,209 +128,231 @@ namespace Loggy
                     await Out.WriteLineAsync(err.Exception.Message + " and omg " + err.Exception.InnerException);
                     try
                     {
-                        await err.Channel.SendMessage($"wait wtf : ```{err.Exception.Message} {err.Exception.InnerException} ```");
-                       await Out.WriteLineAsync($"{err.Exception.Message} {err.Exception.InnerException} {err.Exception.StackTrace}");
+                        await
+                            err.Channel.SendMessage(
+                                $"wait wtf : ```{err.Exception.Message} {err.Exception.InnerException} ```");
+                        await
+                            Out.WriteLineAsync(
+                                $"{err.Exception.Message} {err.Exception.InnerException} {err.Exception.StackTrace}");
                     }
                     catch (Exception)
                     {
                         await err.Channel.SendMessage($"wtf {err.Exception.Message}");
                     }
                 }
-
-            }
-            
         }
-        protected DiscordClient _client;
+
         private void SerializeServerSettingsAndSave()
         {
-            using (StreamWriter sw = new StreamWriter("settings.xml", false))
+            using (var sw = new StreamWriter("settings.xml", false))
             {
                 var ser = new XmlSerializer(typeof(ServerSettings[]));
                 ser.Serialize(sw.BaseStream, SerializableSettingsList);
             }
             Out.WriteLineAsync("serialization done");
         }
-        private bool safeTo(Dictionary<Channel, Channel> dict, Pair<Channel, Channel> per)
+
+        private bool SafeTo(Dictionary<Channel, Channel> dict, Pair<Channel, Channel> per)
         {
-            bool k = true;
+            var k = true;
             foreach (var item in dict)
-            {
-                if (item.Key == per.Second && item.Value == per.First)
+                if ((item.Key == per.Second) && (item.Value == per.First))
                 {
                     k = false;
                     break;
                 }
-            }
             return k;
         }
+
         public void Start(string[] args = null)
         {
             #region declares
-            _client = new DiscordClient();
 
+            Client = new DiscordClient();
 
             #endregion
-            _client.MessageReceived += async (s, e) =>
+
+            Client.MessageReceived += async (s, e) =>
             {
-                foreach (KeyValuePair<Channel, Channel> item in toRecord)
-                {
+                foreach (var item in _toRecord)
                     if (e.Channel == item.Key)
                     {
                         await Task.Delay(new Random(DateTime.Now.Millisecond).Next(1000, 3000));
-                        await item.Value.SendMessage($"#{e.Channel.Name} | **{e.Message.User}** said : {e.Message.Text.Replace("@", "*@*")}");
+                        await
+                            item.Value.SendMessage(
+                                $"#{e.Channel.Name} | **{e.Message.User}** said : {e.Message.Text.Replace("@", "*@*")}");
                     }
-                }
             };
 
-            _client.MessageUpdated += async (s, e) =>
+            Client.MessageUpdated += async (s, e) =>
             {
-                foreach (KeyValuePair<Channel, Channel> item in toRecord)
-                {
+                foreach (var item in _toRecord)
                     if (e.Channel == item.Key)
-                    {
-                        await item.Value.SendMessage($@"#{e.Channel.Name} | **{e.User.Name}#{e.User.Discriminator}** edited this message :
+                        await
+                            item.Value.SendMessage(
+                                $@"#{e.Channel.Name} | **{e.User.Name}#{e.User.Discriminator}** edited this message :
 {e.Before.Text}
 :arrow_down:
 {e.After.Text}");
-                    }
-                }
             };
-            _client.UsingCommands(x =>
+            Client.UsingCommands(x =>
             {
                 x.PrefixChar = '=';
                 x.HelpMode = HelpMode.Public;
-                x.ErrorHandler += async (a, b) => { await ok(a, b); };
+                x.ErrorHandler += async (a, b) => { await Ok(b); };
                 x.ExecuteHandler += async (a, e) =>
                 {
                     if (e.User.IsBot)
                         throw new CommandSentByBotException();
                     try
                     {
-                        await Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
+                        await
+                            Out.WriteLineAsync(
+                                $"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
                     }
                     catch (Exception)
                     {
                         try
                         {
-                            await Out.WriteLineAsync($"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
+                            await
+                                Out.WriteLineAsync(
+                                    $"Server: {e.Server.Name} --> received command : {e.Message.Text} from {e.User.Name}#{e.User.Discriminator}");
                         }
                         catch
                         {
-
+                            // ignored
                         }
                     }
                 };
-
             });
-            _client.Ready += (s, e) =>
+            Client.Ready += (s, e) =>
             {
-                _client.SetGame("Type \"=help\" to get started !");
+                Client.SetGame("Type \"=help\" to get started !");
                 try
                 {
-                    using (StreamReader sr = new StreamReader("settings.xml"))
+                    using (var sr = new StreamReader("settings.xml"))
                     {
-                        SerializableSettingsList = (ServerSettings[])new XmlSerializer(typeof(ServerSettings[])).Deserialize(sr);
+                        SerializableSettingsList =
+                            (ServerSettings[]) new XmlSerializer(typeof(ServerSettings[])).Deserialize(sr);
                     }
                 }
-                catch { }
+                catch
+                {
+                    // ignored
+                }
                 try
                 {
-                    using (StreamReader sr = new StreamReader("trusted.xml"))
+                    using (var sr = new StreamReader("trusted.xml"))
                     {
-                        SerializableTrustedEvalList = (ulong[])new XmlSerializer(typeof(ulong[])).Deserialize(sr.BaseStream);
+                        SerializableTrustedEvalList =
+                            (ulong[]) new XmlSerializer(typeof(ulong[])).Deserialize(sr.BaseStream);
                     }
                 }
-                catch (Exception)
+                catch
                 {
+                    // ignored
                 }
             };
 
             DoCommands();
 
             #region UserAndRoleEvents
-            _client.UserBanned += async (s, e) =>
+
+            Client.UserBanned +=
+                async (s, e) =>
                 {
-                    await FindLogServer(e.Server).SendMessage($"**{e.User.Name}#{ e.User.Discriminator}** has been banned :boom:");
+                    await
+                        FindLogServer(e.Server)
+                            .SendMessage($"**{e.User.Name}#{e.User.Discriminator}** has been banned :boom:");
                 };
-            _client.UserLeft += async (s, e) =>
+            Client.UserLeft += async (s, e) =>
             {
                 try
                 {
-
                     if (!(await e.Server.GetBans()).Contains(e.User))
-                    {
-                        await FindLogServer(e.Server).SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
-                    }
+                        await
+                            FindLogServer(e.Server)
+                                .SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
                 }
                 catch (Exception)
                 {
-                    await FindLogServer(e.Server).SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
+                    await
+                        FindLogServer(e.Server)
+                            .SendMessage($"{e.User.Name}#{e.User.Discriminator} has left {e.Server.Name}.");
                 }
             };
-            _client.UserUnbanned += async (s, e) =>
-            {
-                await FindLogServer(e.Server).SendMessage($"{e.User.Name} has been unbanned from {e.Server.Name}.");
-            };
-            _client.RoleCreated += async (s, e) =>
+            Client.UserUnbanned +=
+                async (s, e) =>
+                {
+                    await FindLogServer(e.Server).SendMessage($"{e.User.Name} has been unbanned from {e.Server.Name}.");
+                };
+            Client.RoleCreated += async (s, e) =>
             {
                 var x = await FindLogServer(e.Server).SendMessage($@"A role has been created :
 Name : {e.Role.Name}
 IsMentionnable : {e.Role.IsMentionable}
 Position : {e.Role.Position}
 This message will be deleted in 10 seconds.");
-                new Task(async () => { await Task.Delay(10000); await x.Delete(); }).Start();
-            };
-            _client.RoleDeleted += async (s, e) =>
-            {
-                string members = string.Empty;
-                foreach (var item in e.Role.Members)
+                new Task(async () =>
                 {
-                    members += $"{item} ; ";
-                }
-                var x = await FindLogServer(e.Server).SendMessage($@":boom: a role has been ~~destroyed~~ deleted. Name : {e.Role.Name} Members : {members}
-This message will be deleted in 10 seconds.");
-                new Task(async () => { await Task.Delay(10000); await x.Delete(); }).Start();
+                    await Task.Delay(10000);
+                    await x.Delete();
+                }).Start();
             };
-            _client.RoleUpdated += async (s, e) =>
+            Client.RoleDeleted += async (s, e) =>
+            {
+                var members = string.Empty;
+                foreach (var item in e.Role.Members)
+                    members += $"{item} ; ";
+                var x =
+                    await
+                        FindLogServer(e.Server)
+                            .SendMessage(
+                                $@":boom: a role has been ~~destroyed~~ deleted. Name : {e.Role.Name} Members : {members}
+This message will be deleted in 10 seconds.");
+                new Task(async () =>
+                {
+                    await Task.Delay(10000);
+                    await x.Delete();
+                }).Start();
+            };
+            Client.RoleUpdated += async (s, e) =>
             {
                 if (!FindServSettings(e.Server).RoleUpdatesMessage)
-                {
                     goto nope;
-                }
-                Type ok = typeof(ServerPermissions);
-                Type secondk = typeof(Role);
-                Type boul = typeof(bool);
-                string kek = "";
-                string kek2 = string.Empty;
+                var ok = typeof(ServerPermissions);
+                var kek = "";
+                var kek2 = string.Empty;
+
                 #region for
-                foreach (PropertyInfo propertyInfo in ok.GetProperties())
-                {
+
+                foreach (var propertyInfo in ok.GetProperties())
                     if (propertyInfo.CanRead)
                     {
-                        object firstValue = propertyInfo.GetValue(e.Before.Permissions, null);
-                        object secondValue = propertyInfo.GetValue(e.After.Permissions, null);
+                        var firstValue = propertyInfo.GetValue(e.Before.Permissions, null);
+                        var secondValue = propertyInfo.GetValue(e.After.Permissions, null);
 
-                        if (!Equals(firstValue, secondValue) && firstValue is bool && secondValue is bool)
+                        if (Equals(firstValue, secondValue) || !(firstValue is bool) || !(secondValue is bool))
+                            continue;
+                        try
                         {
-                            try
-                            {
-                                kek += $"{propertyInfo.Name} : {Convert.ToBoolean(firstValue)} -> {Convert.ToBoolean(secondValue)} {Environment.NewLine}";
-                            }
-                            catch (Exception)
-                            {
-                                ;
-                            }
-
+                            kek +=
+                                $"{propertyInfo.Name} : {Convert.ToBoolean(firstValue)} -> {Convert.ToBoolean(secondValue)} {Environment.NewLine}";
+                        }
+                        catch
+                        {
+                            // ignored m8
                         }
                     }
-                }
+
                 #endregion
-                Message x = null;
-                string before = string.Empty;
-                string after = string.Empty;
-                if (rolesChanges.Any(something => { return something.Second.Equals(e.After.Id) && something != null; }))
+
+                Message x;
+                if (
+                    _rolesChanges.Any(
+                        something => something.Second.Equals(e.After.Id)))
                 {
-                    x = rolesChanges.Find(p => p.Second.Equals(e.After.Id)).First;
+                    x = _rolesChanges.Find(p => p.Second.Equals(e.After.Id)).First;
                     try
                     {
                         await x.Edit($@"This message will be deleted in 10 seconds.
@@ -363,7 +364,7 @@ Perms that changed:
                     }
                     catch (Exception)
                     {
-                        await FindLogServer(e.Server).SendMessage($"mhm something weird happened");
+                        await FindLogServer(e.Server).SendMessage("mhm something weird happened");
                     }
                 }
                 else
@@ -375,34 +376,45 @@ Name : {e.Before.Name} -> {e.After.Name}
 Perms that changed:
 {kek}
 "
-);
+                    );
                 }
 
-                rolesChanges.Add(new Pair<Message, ulong>(x, e.After.Id));
-                new Task(async () => { await Task.Delay(17500); await x.Delete(); }).Start();
-                rolesChanges = rolesChanges.Where(me => me.First != null).ToList();
-                nope:;
+                _rolesChanges.Add(new Pair<Message, ulong>(x, e.After.Id));
+                new Task(async () =>
+                {
+                    await Task.Delay(17500);
+                    await x.Delete();
+                }).Start();
+                _rolesChanges = _rolesChanges.Where(me => me.First != null).ToList();
+                nope:
+                ;
             };
-            _client.ChannelCreated += async (s, e) =>
-            {
-                await FindLogServer(e.Server).SendMessage($":white_check_mark: => A channel ({ e.Channel.Name}) has been created !");
+            Client.ChannelCreated +=
+                async (s, e) =>
+                {
+                    await
+                        FindLogServer(e.Server)
+                            .SendMessage($":white_check_mark: => A channel ({e.Channel.Name}) has been created !");
+                };
+            Client.ChannelDestroyed +=
+                async (s, e) =>
+                {
+                    await
+                        FindLogServer(e.Server)
+                            .SendMessage($":boom: The channel {e.Channel.Name} has been **destroyed**");
+                };
 
-            };
-            _client.ChannelDestroyed += async (s, e) =>
-            {
-                await FindLogServer(e.Server).SendMessage($":boom: The channel {e.Channel.Name} has been **destroyed**");
-            };
             #endregion
-            _client.ExecuteAndWait(async () =>
+
+            Client.ExecuteAndWait(async () =>
             {
                 string tok;
-                string path = AppDomain.CurrentDomain.BaseDirectory + "toke.t";
 
-                string kek;
-                if (args == null || (args.Length > 0 ? args?[0] == "" : true))
+                if ((args == null) || args.Length <= 0 || args[0] == "")
                 {
-                    tok = "kek";
-                    using (FileStream file = File.Open(AppDomain.CurrentDomain.BaseDirectory + "toke.t", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
+                    using (
+                        var file = File.Open(AppDomain.CurrentDomain.BaseDirectory + "toke.t", FileMode.OpenOrCreate,
+                            FileAccess.ReadWrite, FileShare.ReadWrite))
                     {
                         using (var str = new StreamReader(file))
                         {
@@ -410,7 +422,6 @@ Perms that changed:
                             str.Close();
                         }
                     }
-
                 }
                 else
                 {
@@ -419,19 +430,21 @@ Perms that changed:
                 Retry:
                 try
                 {
-                    await _client.Connect(tok, TokenType.Bot);
+                    await Client.Connect(tok, TokenType.Bot);
                 }
                 catch (Exception)
                 {
                     await Out.WriteLineAsync("Insert token plesssss");
                     await Out.FlushAsync();
-                    kek = await Console.In.ReadLineAsync();
+                    var kek = await In.ReadLineAsync();
                     tok = kek;
                     goto Retry;
                 }
                 await Out.WriteLineAsync("I guess i'm connected");
 
-                using (FileStream file = File.Open(AppDomain.CurrentDomain.BaseDirectory + "toke.t", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
+                using (
+                    var file = File.Open(AppDomain.CurrentDomain.BaseDirectory + "toke.t", FileMode.OpenOrCreate,
+                        FileAccess.ReadWrite, FileShare.ReadWrite))
                 {
                     using (var sw = new StreamWriter(file))
                     {
@@ -440,78 +453,95 @@ Perms that changed:
                         sw.Close();
                     }
                 }
-
-
             });
         }
-        public enum TextEmojiOptions
-        {
-             Lowercase,
-             NoOptions
-        }
 
-        public string TextToEmoji(string input,TextEmojiOptions top = TextEmojiOptions.NoOptions)
+        public string TextToEmoji(string input, TextEmojiOptions top = TextEmojiOptions.NoOptions)
         {
-            string message = top == TextEmojiOptions.Lowercase ? "​" : "";
+            var message = top == TextEmojiOptions.Lowercase ? "​" : "";
+
             #region dict
-            Dictionary <int, string> dict = new Dictionary<int, string>() {
-            {0, ":zero:"},
-            {1, ":one:"},
-            {2, ":two:"},
-            {3, ":three:"},
-            {4, ":four:"},
-            {5, ":five:"},
-            {6, ":six:"},
-            {7, ":seven:"},
-            {8, ":eight:"},
-            {9, ":nine:"},
-            {10, ":keycap_ten:"}
-           };
+
+            var dict = new Dictionary<int, string>
+            {
+                {0, ":zero:"},
+                {1, ":one:"},
+                {2, ":two:"},
+                {3, ":three:"},
+                {4, ":four:"},
+                {5, ":five:"},
+                {6, ":six:"},
+                {7, ":seven:"},
+                {8, ":eight:"},
+                {9, ":nine:"},
+                {10, ":keycap_ten:"}
+            };
+
             #endregion
+
             #region sym
-            Dictionary<char, string> sym = new Dictionary<char, string>()
-           {
+
+            var sym = new Dictionary<char, string>
+            {
                 {'+', ":heavy_plus_sign: "},
                 {'-', ":heavy_minus_sign:"},
                 {'÷', ":heavy_division_sign:"},
-                {'#',":hash:"},
+                {'#', ":hash:"},
                 {'.', ":black_small_square:"},
-                {'$', ":heavy_dollar_sign: " },
-                {'!',":exclamation:" },
-                {'?',":question:" },
-                {'*',":asterisk:" }
-           };
-            #endregion
-            foreach (char c in input.ToCharArray())
-            {
-                if (char.IsLetter(c) && System.Text.RegularExpressions.Regex.IsMatch(c.ToString(), "^[a-zA-Z]*$"))
-                {
+                {'$', ":heavy_dollar_sign: "},
+                {'!', ":exclamation:"},
+                {'?', ":question:"},
+                {'*', ":asterisk:"}
+            };
 
+            #endregion
+
+            foreach (var c in input)
+                if (char.IsLetter(c) && Regex.IsMatch(c.ToString(), "^[a-zA-Z]*$"))
                     message += $":regional_indicator_{c}:";
-                }
                 else if (char.IsDigit(c))
-                {
                     message += dict[int.Parse(c.ToString())];
-                }
                 else if (sym.ContainsKey(c))
-                {
                     message += sym[c];
-                }
                 else if (c == ' ')
-                {
                     message += "   ";
-                }
                 else // u wut m8 ? nothing m9 
-                {
                     message += c;
-                }
-            }
             return message;
         }
 
+        #region Accept
+
+        private bool IsAcceptable(CommandEventArgs e)
+        {
+            var acc = false;
+            foreach (var role in e.User.Roles)
+                if (role.Name.ToLower().Contains("logger") || role.Name.ToLower().Contains("Admin") ||
+                    IsJeuxjeux(e.User))
+                {
+                    acc = true;
+                    break;
+                }
+            return acc;
+        }
+
+        private bool IsAcceptable(User e)
+        {
+            var acc = false;
+            foreach (var role in e.Roles)
+                if (role.Name.ToLower().Contains("logger") || role.Name.ToLower().Contains("Admin") || IsJeuxjeux(e))
+                {
+                    acc = true;
+                    break;
+                }
+            return acc;
+        }
+
+        #endregion
     }
+
     /// <summary>
-    /// you wot m9
+    ///     you wot m9
     /// </summary>
     /// <typeparam name="T1">the first m9</typeparam>
     /// <typeparam name="T2">the second m7</typeparam>
@@ -519,14 +549,7 @@ Perms that changed:
     public class Pair<T1, T2>
     {
         /// <summary>
-        /// topkek !
-        /// </summary>
-        [XmlElement]
-        public T1 First { get; set; }
-        [XmlElement]
-        public T2 Second { get; set; }
-        /// <summary>
-        /// oh no let's construct this kek 
+        ///     oh no let's construct this kek
         /// </summary>
         /// <param name="first">first kek</param>
         /// <param name="second">second kekkeroni</param>
@@ -535,29 +558,22 @@ Perms that changed:
             First = first;
             Second = second;
         }
+
+        /// <summary>
+        ///     topkek !
+        /// </summary>
+        [XmlElement]
+        public T1 First { get; set; }
+
+        [XmlElement]
+        public T2 Second { get; set; }
     }
+
     public static class Extensions
     {
+/*
         /// <summary>
-        /// A function that LET U CONTINUE EVEN IN A FEKIN EXCEPTION GOT THROWN
-        /// </summary>
-        /// <param name="a">ur action</param>
-        /// <returns>An exception if one get thrown; else u r null m8</returns>
-        public static Exception IgnoreException(Action a)
-        {
-
-            try
-            {
-                a();
-            }
-            catch (Exception uWotm8)
-            {
-                return uWotm8;
-            }
-            return null;
-        }
-        /// <summary>
-        /// Let you continue if an exception got thrown
+        ///     Let you continue if an exception got thrown
         /// </summary>
         /// <typeparam name="TResult">The result of the func</typeparam>
         /// <param name="FuncToTest">A func to test</param>
@@ -567,15 +583,17 @@ Perms that changed:
             try
             {
                 return FuncToTest();
-
             }
             catch (Exception)
             {
                 return default(TResult);
             }
         }
+*/
+
+/*
         /// <summary>
-        /// A function that let you continue even if an exception got thrown
+        ///     A function that let you continue even if an exception got thrown
         /// </summary>
         /// <typeparam name="TResult">The type of the result of the func</typeparam>
         /// <param name="FuncToTest">the func to test.</param>
@@ -586,69 +604,66 @@ Perms that changed:
             try
             {
                 return FuncToTest();
-
             }
             catch (Exception)
             {
                 return onError;
             }
         }
-        public static TResult IgnoreException<P1, TResult>(P1 p1, Func<P1, TResult> FuncToTest, TResult onError)
+*/
+
+/*
+        public static TResult IgnoreException<TP1, TResult>(TP1 p1, Func<TP1, TResult> funcToTest, TResult onError)
         {
             try
             {
-                return FuncToTest(p1);
-
+                return funcToTest(p1);
             }
             catch (Exception)
             {
                 return onError;
             }
         }
-        public static string ItinerateAndGet(this IEnumerable r)
-        {
-            var toReturn = string.Empty;
-            foreach (var item in r)
-            {
-                toReturn += $"{item.ToString()} - ";
-            }
-            return toReturn;
+*/
 
-        }
+        //public static string ItinerateAndGet(this IEnumerable r)
+        //{
+        //    return r.Cast<object>().Aggregate(string.Empty, (current, item) => current + $"{item} - ");
+        //}
+
+/*
         public static string ItinerateAndGet(this IEnumerable r, Func<object, object> act)
         {
-            var toReturn = string.Empty;
-            foreach (var item in r)
-            {
-                toReturn += $"{act(item)} - ";
-            }
-            return toReturn;
+            return r.Cast<object>().Aggregate(string.Empty, (current, item) => current + $"{act(item)} - ");
         }
+*/
     }
+
     public class ServerSettings
     {
-        [XmlAttribute("ServerId")]
-        public ulong Id { get; set; }
-        [XmlElement("ChannelId")]
-        public ulong ChannelIdToLog { get; set; }
-        [XmlElement("RoleUpdates")]
-        public bool RoleUpdatesMessage { get; set; } = true;
-
         public ServerSettings()
         {
             Id = 0;
         }
+
         public ServerSettings(ulong u)
         {
             Id = u;
         }
+
         public ServerSettings(ulong u, ulong s)
         {
             Id = u;
             ChannelIdToLog = s;
-            
         }
-        
 
+        [XmlAttribute("ServerId")]
+        public ulong Id { get; set; }
+
+        [XmlElement("ChannelId")]
+        public ulong ChannelIdToLog { get; set; }
+
+        [XmlElement("RoleUpdates")]
+        public bool RoleUpdatesMessage { get; set; } = true;
     }
 }

@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Loggy
+﻿namespace Loggy
 {
-    class ASCIIBar
+    internal class AsciiBar
     {
         public static string DrawProgressBar(uint percent)
         {
@@ -15,7 +9,7 @@ namespace Loggy
             progress[21] = ']';
             if (percent > 100)
                 percent = 100;
-            float charsToFill = percent / 5;
+            float charsToFill = percent / (float)5;
             byte lel = 1;
             for (int i = 0; i < charsToFill; i++)
             {

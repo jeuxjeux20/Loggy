@@ -1,12 +1,11 @@
-﻿using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using LoggyTestUnit;
+﻿using System.Linq;
 using Loggy;
-using System.Linq;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 namespace LoggyTestUnit
 {
     [TestClass]
-    public class UnitTest1 : Loggy.Program
+    public class UnitTest1 : Program
     {
         [TestMethod]
         public void TestMethod1()
@@ -14,7 +13,7 @@ namespace LoggyTestUnit
             int count = 0;
             try
             {
-                count = _client.Servers.Count();
+                count = Client.Servers.Count();
             }
             catch
             {
